@@ -1,15 +1,75 @@
 import socket
+import threading
 
-UDP_IP = "192.168.24.1"
-UDP_PORT = 4210
-MESSAGE = "Hi, can you listen to this?"
+class MySocket:
+    """demonstration class only
+      - coded for clarity, not efficiency
+    """
 
-print("UDP target IP:", UDP_IP)
-print("UDP target port:", UDP_PORT)
-print("message:", MESSAGE)
+    def __init__(self, sock=None):
+        if sock is None:
+            self.sock = socket.socket(
+                            socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            self.sock = sock
 
-sock = socket.socket(socket.AF_INET, # Internet
+    def connect(self, host, port):
+        self.sock.connect((host, port))
+
+    def mysend(self, msg):
+        totalsent = 0
+        while totalsent < MSGLEN:
+            sent = self.sock.send(msg[totalsent:])
+            if sent == 0:
+                raise RuntimeError("socket connection broken")
+            totalsent = totalsent + sent
+
+    def myreceive(self):
+        chunks = []
+        bytes_recd = 0
+        while bytes_recd < MSGLEN:
+            chunk = self.sock.recv(min(MSGLEN - bytes_recd, 2048))
+            if chunk == b'':
+                raise RuntimeError("socket connection broken")
+            chunks.append(chunk)
+            bytes_recd = bytes_recd + len(chunk)
+        return b''.join(chunks)
+
+def send_command():
+    UDP_IP = "192.168.24.1"
+    UDP_PORT = 4210
+    MESSAGE = bytes("CIS1000000" + chr(0x01) + str(65432), encoding='utf-8')
+
+    print("UDP target IP:", UDP_IP)
+    print("UDP target port:", UDP_PORT)
+    print("message:", MESSAGE)
+
+    sock = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP
-sock.sendto(MESSAGE.encode('ascii'), (UDP_IP, UDP_PORT))
+    sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+    print("sended")
 
-print("sended")
+def tcp_server(name):
+
+    HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
+    PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((HOST, PORT))
+        s.listen()
+        send_command()
+        conn, addr = s.accept()
+        with conn:
+            print(f"Connected by {addr}")
+            while True:
+                data = conn.recv(1024)
+                print(f"{data}", data)
+
+if __name__ == '__main__':
+
+    tcp_server("toto")
+
+    recv = sock.recv(2048)
+    print("recv ".join(recv))
+
+
