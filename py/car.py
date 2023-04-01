@@ -24,7 +24,7 @@ def create_tcp_conn(udp, lvl_2_pass):
     tcp.bind(("", LOCAL_PORT))
     tcp.listen(16)
 
-    udpcontrol = CarControl(udp, 2, lvl_2_pass)
+    udpcontrol = CarControl(udp, tcp, 2, lvl_2_pass)
 
     udpcontrol.open_tcp_link(LOCAL_PORT)
 
@@ -34,41 +34,49 @@ def create_tcp_conn(udp, lvl_2_pass):
 
 class CarControl :
 
-    def __init__(self, socket, lvl, password):
-        self.socket = socket
+    def __init__(self, udpsocket, tcpsocket, lvl, password):
+        self.udpsocket = udpsocket
+        self.tcpsocket = tcpsocket
         self.lvl = lvl
         self.password = password
 
-    def _generic_send(self, command):
-        self.socket.send(b"CIS"
+    def udp_generic_send(self, command):
+        self.udpsocket.send(b"CIS"
+                       + self.lvl.to_bytes(1, "big")
+                       + self.password
+                       + command
+        )
+
+    def tcp_generic_send(self, command):
+        self.tcpsocket.send(b"CIS"
                        + self.lvl.to_bytes(1, "big")
                        + self.password
                        + command
         )
 
     def open_tcp_link(self, port):
-        self._generic_send(b"\x01"+port.to_bytes(2, "big"))
+        self.udp_generic_send(b"\x01"+port.to_bytes(2, "big"))
 
     def engine_on(self):
-        self._generic_send(b"\x10\x01")
+        self.tcp_generic_send(b"\x10\x01")
 
     def engine_off(self):
-        self._generic_send(b"\x10\x00")
+        self.tcp_generic_send(b"\x10\x00")
 
     def pilot(self, throttle, steering):
-        self._generic_send(b"\x11"+throttle.to_bytes(2, "big", signed=True)+steering.to_bytes(2, "big",signed=True))
+        self.udp_generic_send(b"\x11"+throttle.to_bytes(2, "big", signed=True)+steering.to_bytes(2, "big",signed=True))
 
     def set_headlights(self, level):
-        self._generic_send(b"\x12"+level.to_bytes(2, "big"))
+        self.tcp_generic_send(b"\x12"+level.to_bytes(2, "big"))
 
     def invert_steering(self, activate=True):
-        self._generic_send(b"\x31"+activate.to_bytes(1, "big"))
+        self.tcp_generic_send(b"\x31"+activate.to_bytes(1, "big"))
 
     def invert_throttle(self, activate=True):
-        self._generic_send(b"\x32"+activate.to_bytes(1, "big"))
+        self.tcp_generic_send(b"\x32"+activate.to_bytes(1, "big"))
 
     def set_color(self, r, g, b):
-        self._generic_send(b"\x33"+r.to_bytes(1)+g.to_bytes(1)+b.to_bytes(1, "big"))
+        self.tcp_generic_send(b"\x33"+r.to_bytes(1)+g.to_bytes(1)+b.to_bytes(1, "big"))
 
 @dataclass
 class CarStatus:

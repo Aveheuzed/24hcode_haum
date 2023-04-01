@@ -4,6 +4,7 @@ from tkinter.colorchooser import askcolor
 from tkinter import ttk
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 import time
+from threading import *
 #from PIL import ImageTk, Image
 #import cv2
 
@@ -11,8 +12,10 @@ from car import create_udp_conn, create_tcp_conn, CarControl, fetch_status
 
 class App:
     def __init__(self, root):
+        self.initControllerKeyboard()
         
         self.initValues()
+
         self.ip = None
         self.udp = None
         self.tcp =None
@@ -47,15 +50,18 @@ class App:
         self.initCarSelectUI(root)
         self.bindings(root)
 
-        self.updateValues()
+        self.threadCommand()
+        print("startUI")
+        self.threadUI()
+
+    def initControllerKeyboard(self):
+        self.throttle = 0
+        self.steer = 0
+        self.engine = False
 
     def initValues(self):
-        self.engine = 0
-        self.speed = 0
-        self.steer = 0
         self.headlight = 0
         self.rearlight = "#1c7bd9"
-        self.blinker = False
         self.tmpBlinker = tk.IntVar()
 
         self.rssi = 0
@@ -85,11 +91,15 @@ class App:
         print('Finished initValues')
 
     def bindings(self,root):
-        root.bind('a', lambda event: self.setForward())
+        #root.bind('<KeyRelease-a>', lambda event: print("release"))
+        root.bind('z', lambda event: self.throttleIncrease())
+        root.bind('s', lambda event: self.throttleDecrease())
+
+        root.bind('t', lambda event: self.startEngine())
+        root.bind('y', lambda event: self.stopEngine())
+
         root.bind('e', lambda event: self.setStop())
-        root.bind('z', lambda event: self.speedIncrease())
         root.bind('q', lambda event: self.steerLeft())
-        root.bind('s', lambda event: self.speedDecrease())
         root.bind('d', lambda event: self.steerRight())
         root.bind('p', lambda event: self.headlightUp())
         root.bind('m', lambda event: self.headlightDown())
@@ -194,7 +204,7 @@ class App:
         self.LabelEngine["font"] = ft
         self.LabelEngine["fg"] = "#333333"
         self.LabelEngine["justify"] = "center"
-        self.LabelEngine["text"] = "Engine status: " + str(self.engine)
+        self.LabelEngine["text"] = "Engine status: "
         self.LabelEngine.place(x=200,y=10,width=100,height=25)
 
         self.ScaleSpeed=tk.Scale(root)
@@ -205,50 +215,42 @@ class App:
         self.ScaleSpeed["tickinterval"] = 10
         self.ScaleSpeed["orient"] = tk.HORIZONTAL
         self.ScaleSpeed.place(x=400,y=110,width=300,height=100)
-        self.ScaleSpeed["command"] = self.ScaleSpeed_command
 
         self.LabelSpeed=tk.Label(root)
         ft = tkFont.Font(family='Times',size=10)
         self.LabelSpeed["font"] = ft
         self.LabelSpeed["fg"] = "#333333"
         self.LabelSpeed["justify"] = "center"
-        self.LabelSpeed["text"] = "Speed: " + str(self.speed)
+        self.LabelSpeed["text"] = "Speed: "
         self.LabelSpeed.place(x=50,y=30,width=100,height=25)
 
 
-    def updateSpeedUI(self):
-        self.LabelSpeed["text"] = "Speed: " + str(int(self.speed))
-        self.ScaleSpeed.set(self.speed * 100 / self.SPEED_MAX)
+    def updateSpeedUI(self, throttle):
+        self.LabelSpeed["text"] = "Speed: " + str(int(throttle))
+        self.ScaleSpeed.set(throttle * 100 / self.SPEED_MAX)
 
-    def updateEngineUI(self):
-        self.LabelEngine["text"] = "Engine status: " + str(self.engine)
+    def updateEngineUI(self, engine):
+        self.LabelEngine["text"] = "Engine status: " + str(engine)
     
-    def speedIncrease(self):
-        #self.speed = min(self.SPEED_MAX, self.speed + 819.2)
-        #self.updateSpeedUI()
-        print(int(min(self.SPEED_MAX, self.speed + 819.2)), self.steer)
-        self.carControl.pilot(int(min(self.SPEED_MAX, self.speed + 819.2)), self.steer)
+    def throttleIncrease(self):
+        print('increase throttle')
+        self.throttle = int(min(self.SPEED_MAX, self.throttle + 819.2))
 
-    def speedDecrease(self):
-        #self.speed = max(self.SPEED_MIN, self.speed - 819.2)
-        #self.updateSpeedUI()
-        self.carControl.pilot(int(max(self.SPEED_MIN, self.speed - 819.2)), self.steer)
+    def throttleDecrease(self):
+        print('decrease throttle')
+        self.throttle = int(max(self.SPEED_MIN, self.throttle - 819.2))
+        
+    def startEngine(self):
+        if(self.ip != None):
+            print("startEngine")
+            self.engine = True
+            self.carControl.engine_on()
 
-    def setForward(self):
-        #self.speed = 2048
-        #self.updateSpeedUI()
-        self.carControl.pilot(2048, self.steer)
-
-    def setStop(self):
-        #self.speed = 0
-        #self.updateSpeedUI()
-        self.carControl.pilot(0, self.steer)
-
-    # UI Scale
-    def ScaleSpeed_command(self, value):
-        #self.speed=int(value) * self.SPEED_MAX / 100
-        #self.updateSpeedUI()
-        self.carControl.pilot(int(int(value) * self.SPEED_MAX / 100), self.steer)
+    def stopEngine(self):
+        if(self.ip != None):
+            print("stopEngine")
+            self.engine = False
+            self.carControl.engine_off()
 
     def ButtonEngineOn_command(self):
         self.carControl.engine_on()
@@ -271,35 +273,24 @@ class App:
         self.ScaleSteering["tickinterval"] = 10
         self.ScaleSteering["orient"] = tk.HORIZONTAL
         self.ScaleSteering.place(x=400,y=10,width=300,height=100)
-        self.ScaleSteering["command"] = self.ScaleSteering_command
 
         self.LabelSteer=tk.Label(root)
         ft = tkFont.Font(family='Times',size=10)
         self.LabelSteer["font"] = ft
         self.LabelSteer["fg"] = "#333333"
         self.LabelSteer["justify"] = "center"
-        self.LabelSteer["text"] = "Steer: " + str(self.steer)
+        self.LabelSteer["text"] = "Steer: "
         self.LabelSteer.place(x=50,y=60,width=100,height=25)
 
-    def updateSteerUI(self):
-        self.LabelSteer["text"] = "Steer: " + str(int(self.steer))
-        self.ScaleSteering.set(self.steer * 180 / self.STEER_MAX)
+    def updateSteerUI(self, steering):
+        self.LabelSteer["text"] = "Steer: " + str(int(steering))
+        self.ScaleSteering.set(steering * 180 / self.STEER_MAX)
 
     def steerRight(self):
-        #self.steer = min(self.STEER_MAX, self.steer + 3276.8)
-        #self.updateSteerUI()
-        self.carControl.pilot(self.speed, int(min(self.STEER_MAX, self.steer + 3276.8)))
+        self.steer = min(self.STEER_MAX, self.steer + 3276.8)
 
     def steerLeft(self):
-        #self.steer = max(self.STEER_MIN, self.steer - 3276.8)
-        #self.updateSteerUI()
-        self.carControl.pilot(self.speed, int(max(self.STEER_MIN, self.steer - 3276.8)))
-
-    # UI Scale
-    def ScaleSteering_command(self, value: int):
-        #self.steer=int(value) * self.STEER_MAX / 180
-        #self.updateSteerUI()
-        self.carControl.pilot(self.speed, int(int(value) * self.STEER_MAX / 180))
+        self.steer = max(self.STEER_MIN, self.steer - 3276.8)
 
     ##################################################
     ##################################################
@@ -323,12 +314,12 @@ class App:
         self.LabelHeadlight["font"] = ft
         self.LabelHeadlight["fg"] = "#333333"
         self.LabelHeadlight["justify"] = "center"
-        self.LabelHeadlight["text"] = "Headlight: " + str(self.steer)
+        self.LabelHeadlight["text"] = "Headlight: "
         self.LabelHeadlight.place(x=50,y=90,width=100,height=25)
 
-    def updateHeadlightUI(self):
-        self.LabelHeadlight["text"] = "Headlight: " + str(int(self.headlight))
-        self.ScaleHeadlight.set(self.headlight * 100 / self.HEADLIGHT_MAX)
+    def updateHeadlightUI(self, headlight):
+        self.LabelHeadlight["text"] = "Headlight: " + str(int(headlight))
+        self.ScaleHeadlight.set(headlight * 100 / self.HEADLIGHT_MAX)
 
     def headlightUp(self):
         #self.headlight = min(self.HEADLIGHT_MAX, self.headlight + 6553.5)
@@ -371,9 +362,9 @@ class App:
         ButtonColorChooser.place(x=175,y=120,width=100,height=25)
         ButtonColorChooser["command"] = self.ButtonColorChooser_command
 
-    def updateRearlightUI(self):
-        self.LabelColorRear.configure(bg=self.rearlight)
-        self.LabelColorRear["text"] = self.rearlight
+    def updateRearlightUI(self, rearlight):
+        self.LabelColorRear.configure(bg=rearlight)
+        self.LabelColorRear["text"] = rearlight
 
     def ButtonColorChooser_command(self):
         #self.rearlight = askcolor(title="Tkinter Color Chooser")[1]
@@ -417,10 +408,10 @@ class App:
         self.LabelAccelerometerZ["text"] = "Z: "
         self.LabelAccelerometerZ.place(x=720,y=85,width=100,height=25)
     
-    def updateAccelerometerUI(self):
-        self.LabelAccelerometerX["text"] = self.accelerometerX
-        self.LabelAccelerometerY["text"] = self.accelerometerY
-        self.LabelAccelerometerZ["text"] = self.accelerometerZ
+    def updateAccelerometerUI(self, x, y, z):
+        self.LabelAccelerometerX["text"] = x
+        self.LabelAccelerometerY["text"] = y
+        self.LabelAccelerometerZ["text"] = z
 
     ##################################################
     ##################################################
@@ -457,10 +448,10 @@ class App:
         self.LabelGyroscopeZ["text"] = "Z: "
         self.LabelGyroscopeZ.place(x=720,y=185,width=100,height=25)
 
-    def updateGyroscopeUI(self):
-        self.LabelGyroscopeX["text"] = self.gyroscopeX
-        self.LabelGyroscopeY["text"] = self.gyroscopeY
-        self.LabelGyroscopeZ["text"] = self.gyroscopeZ
+    def updateGyroscopeUI(self, x, y ,z):
+        self.LabelGyroscopeX["text"] = x
+        self.LabelGyroscopeY["text"] = y
+        self.LabelGyroscopeZ["text"] = z
 
     ##################################################
     ##################################################
@@ -510,8 +501,8 @@ class App:
         self.LabelCarSelection["text"] = "Connected to: " + self.selectedCar.get()
         self.LabelCarSelection.place(x=100,y=230,width=110,height=25)        
 
-    def updateRSSIUI(self):
-        self.LabelRSSIValue["text"] = self.rssi
+    def updateRSSIUI(self, rssi):
+        self.LabelRSSIValue["text"] = rssi
 
     def OptionMenuCarSelect_command(self, value):
         self.LabelCarSelection["text"] = "Connected to: " + self.selectedCar.get()
@@ -521,9 +512,10 @@ class App:
                 self.ip = e[1]
                 self.udp = create_udp_conn(e[1])
                 self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
-                self.carControl = CarControl(self.tcp, 2, b"\x00"*6)
+                self.carControl = CarControl(self.udp, self.tcp, 2, b"\x00"*6)
+                
+                print("set ip: " + str(self.ip))
 
-                print("set ip: " + self.ip)
 
 
     ##################################################
@@ -555,9 +547,9 @@ class App:
         self.ProgressBatterySOC["orient"] = tk.HORIZONTAL
         self.ProgressBatterySOC.place(x=150, y=175, width=100)
 
-    def updateBatteryUI(self):
-        self.ProgressBatteryADC["value"] = self.batteryADC
-        self.ProgressBatterySOC["value"] = self.batterySOC
+    def updateBatteryUI(self, adc, soc):
+        self.ProgressBatteryADC["value"] = adc
+        self.ProgressBatterySOC["value"] = soc
 
     ##################################################
     ##################################################
@@ -581,21 +573,19 @@ class App:
         ft = tkFont.Font(family='Times',size=10)
         self.LabelBlinkerValue["font"] = ft
         self.LabelBlinkerValue["justify"] = "center"
-        self.LabelBlinkerValue["text"] = "Blinker: " + str(self.blinker)
+        self.LabelBlinkerValue["text"] = "Blinker: "
         self.LabelBlinkerValue.place(x=500,y=310,width=100,height=25)
         
     def updateBlinkerInfo(self):
-        self.LabelBlinkerValue["text"] = "Blinker: " + str(self.blinker)
+        self.LabelBlinkerValue["text"] = "Blinker: "
     
     def CheckBoxBlinker_command(self):
         print(self.tmpBlinker.get())
-        if (self.tmpBlinker.get() == 1):
+        #if (self.tmpBlinker.get() == 1):
             #self.CheckBoxBlinker.select()
-            print("setToTrue")
-            self.blinker = True
-        else:
-            print("setToFalse")
-            self.blinker = False
+            #self.blinker = True
+        #else:
+            #self.blinker = False
             #self.CheckBoxBlinker.deselect()
 
         self.updateBlinkerInfo()
@@ -606,62 +596,43 @@ class App:
     ##################################################
     ##################################################
     def upadteUI(self):
-        self.updateEngineUI()
-        self.updateSteerUI()
-        self.updateSpeedUI()
-        self.updateHeadlightUI()
-        self.updateRearlightUI()
+        while(True):
+            if(self.ip != None):
+                status = fetch_status(self.ip)
+
+                self.updateEngineUI(status.started)
+                self.updateSteerUI(status.steering)
+                self.updateSpeedUI(status.throttle)
+                self.updateHeadlightUI(status.headlights)
+                self.updateRearlightUI('#%02x%02x%02x' % (status.r, status.g, status.b))
 
 
-        self.updateAccelerometerUI()
-        self.updateGyroscopeUI()
+                self.updateAccelerometerUI(status.imu_xl_x, status.imu_xl_y, status.imu_xl_z)
+                self.updateGyroscopeUI(status.imu_g_x, status.imu_g_y, status.imu_g_z)
 
-        self.updateBlinkerInfo()
-        self.updateBatteryUI()
-        self.updateRSSIUI()
+                self.updateBlinkerInfo()
+                self.updateBatteryUI(status.batt_adc, status.batt_soc)
+                self.updateRSSIUI(status.rssi)
 
     def updateValues(self):
-        ## Retrieve new values
+        while(True):
+            ## Retrieve new values
 
-        if(self.ip != None):
-            status  = fetch_status(self.ip)
-            if(status.started):        
-                self.carControl.pilot(status.throttle, status.steering)
+            if(self.ip != None):
+                if(self.engine):        
+                    #print("pilot" + str(self.throttle) + "," +  str(self.steer))
+                    self.carControl.pilot(self.throttle, self.steer)
 
-            #print("Throttle: " + str(status.throttle) + ", Steer: " + str(status.steering))
+                #self.rearlight = '#%02x%02x%02x' % (status.disp_r, status.disp_g, status.disp_b)
+            time.sleep(0.05)
+    
+    def threadCommand(self):
+        t1=Thread(target=self.updateValues)
+        t1.start()
 
-            self.engine = status.started
-            self.speed = status.throttle
-            self.steer = status.steering
-            self.headlight = status.headlights
-            self.rearlight = '#%02x%02x%02x' % (status.r, status.g, status.b)
-            #self.rearlight = '#%02x%02x%02x' % (status.disp_r, status.disp_g, status.disp_b)
-
-            self.blinker = False
-            self.tmpBlinker = tk.IntVar()        
-
-            #status.ir
-
-            self.rssi = status.rssi
-            self.batterySOC = status.batt_soc
-            self.batteryADC = status.batt_adc
-
-            self.accelerometerX = status.imu_xl_x
-            self.accelerometerY = status.imu_xl_y
-            self.accelerometerZ = status.imu_xl_z
-            
-            self.gyroscopeX = status.imu_g_x
-            self.gyroscopeY = status.imu_g_y
-            self.gyroscopeZ = status.imu_g_z
-
-            self.carList = ["Jan","Feb","Mar"]
-
-            self.selectedCar = tk.StringVar()
-            self.selectedCar.set(None) # default value
-
-            self.upadteUI()
-
-        self.root.after(100, self.updateValues)
+    def threadUI(self):
+        t1=Thread(target=self.upadteUI)
+        t1.start()
 
 tabName = []
 tab = []
@@ -679,12 +650,12 @@ class MyListener(ServiceListener):
         tab.append((name.split('.')[0], ".".join(str(val) for val in [info.addresses[0][i] for i in range(0, len(info.addresses[0]))])))
 
 if __name__ == "__main__":
-
+    
     zeroconf = Zeroconf()
     listener = MyListener()
     browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
     print("getting cars list...")
-    time.sleep(4)
+    time.sleep(10)
     print(tab)
 
 
