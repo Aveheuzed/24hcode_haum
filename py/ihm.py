@@ -15,6 +15,8 @@ class App:
         #setting title
         root.title("undefined")
 
+        self.root = root
+
         #setting window size
         width=1000
         height=1000
@@ -38,6 +40,7 @@ class App:
         self.initBlinkerUI(root)        
         self.initRSSIUI(root)        
 
+        self.initCarSelectUI(root)
         self.bindings(root)
 
         self.updateValues()
@@ -61,6 +64,11 @@ class App:
         self.gyroscopeX = 0
         self.gyroscopeY = 0
         self.gyroscopeZ = 0
+
+        self.carList = ["Jan","Feb","Mar"]
+
+        self.selectedCar = tk.StringVar()
+        self.selectedCar.set(None) # default value
 
         self.SPEED_MAX = 8192
         self.SPEED_MIN = -8192
@@ -413,6 +421,36 @@ class App:
 
     ##################################################
     ##################################################
+    ### Car select 
+    ##################################################
+    ##################################################
+
+    def initCarSelectUI(self, root):
+        LabelCarSelection=tk.Label(root)
+        ft = tkFont.Font(family='Times',size=10)
+        LabelCarSelection["font"] = ft
+        LabelCarSelection["justify"] = "center"
+        LabelCarSelection["text"] = "Select a car: "
+        LabelCarSelection.place(x=50,y=200,width=100,height=25)
+
+        OptionMenuCarSelect = tk.OptionMenu(root, self.selectedCar, *(self.carList), command = self.OptionMenuCarSelect_command)
+        OptionMenuCarSelect.place(x=150,y=200,width=100,height=25)
+
+        self.LabelCarSelection=tk.Label(root)
+        ft = tkFont.Font(family='Times',size=10)
+        self.LabelCarSelection["font"] = ft
+        self.LabelCarSelection["justify"] = "center"
+        self.LabelCarSelection["text"] = "Connected to: " + self.selectedCar.get()
+        self.LabelCarSelection.place(x=100,y=230,width=110,height=25)        
+
+    def updateRSSIUI(self):
+        self.LabelRSSIValue["text"] = self.rssi
+
+    def OptionMenuCarSelect_command(self, value):
+        self.LabelCarSelection["text"] = "Connected to: " + self.selectedCar.get()
+
+    ##################################################
+    ##################################################
     ### Battery 
     ##################################################
     ##################################################
@@ -425,9 +463,9 @@ class App:
         LabelBatteryADC["text"] = "Battery ADC"
         LabelBatteryADC.place(x=50,y=150,width=100,height=25)
 
-        ProgressBatteryADC=ttk.Progressbar(root)
-        ProgressBatteryADC["orient"] = tk.HORIZONTAL
-        ProgressBatteryADC.place(x=150, y=150, width=100)
+        self.ProgressBatteryADC=ttk.Progressbar(root)
+        self.ProgressBatteryADC["orient"] = tk.HORIZONTAL
+        self.ProgressBatteryADC.place(x=150, y=150, width=100)
 
         LabelBatterySOC=tk.Label(root)
         ft = tkFont.Font(family='Times',size=10)
@@ -436,9 +474,9 @@ class App:
         LabelBatterySOC["text"] = "Battery SOC"
         LabelBatterySOC.place(x=50,y=175,width=100,height=25)
 
-        ProgressBatterySOC=ttk.Progressbar(root)
-        ProgressBatterySOC["orient"] = tk.HORIZONTAL
-        ProgressBatterySOC.place(x=150, y=175, width=100)
+        self.ProgressBatterySOC=ttk.Progressbar(root)
+        self.ProgressBatterySOC["orient"] = tk.HORIZONTAL
+        self.ProgressBatterySOC.place(x=150, y=175, width=100)
 
     def updateBatteryUI(self):
         self.ProgressBatteryADC["value"] = self.batteryADC
@@ -506,16 +544,11 @@ class App:
     def updateValues(self):
         ## Retrieve new values
 
-        self.speed = 0
-        self.steer = 0
-        self.headlight = 0
-        self.rearlight = "#1c7bd9"
-        self.blinker = False
-        self.tmpBlinker = tk.IntVar()
+        #self.initValues()
 
         self.upadteUI()
 
-        self.after(1000, self.updateValues)
+        self.root.after(1000, self.updateValues)
     
 
 # function for video streaming

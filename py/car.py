@@ -1,7 +1,6 @@
 import socket
 import struct
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
-from zeroconf import ZeroconfServiceTypes
 import threading
 import time
 from dataclasses import dataclass
@@ -15,11 +14,9 @@ MCAST_GRP = '239.255.0.1'
 MCAST_PORT = 4211
 
 
-def create_udp_conn(name):
-    ip = socket.gethostbyname(name)
-    print(ip)
+def create_udp_conn(remote_host):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect((REMOTE_HOST, REMOTE_PORT))
+    s.connect((remote_host, REMOTE_PORT))
     return s
 
 def create_tcp_conn(udp, lvl_2_pass):
@@ -50,7 +47,7 @@ class CarControl :
         )
 
     def open_tcp_link(self, port):
-        self._generic_send(b"\x01"+port.to_bytes(2, "big"))
+        self._generic_send(b"\x01"+port.to_bytes(2))
 
     def engine_on(self):
         self._generic_send(b"\x10\x01")
@@ -102,7 +99,7 @@ class CarStatus:
     def is_complete(self):
         return not any(x is None for x in self.__dict__.values())
 
-def fetch_status():
+def fetch_status(target_host):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('', MCAST_PORT))
@@ -112,7 +109,7 @@ def fetch_status():
     status = CarStatus()
     while not status.is_complete():
         data, address = sock.recvfrom(1024)
-        if address[0] == REMOTE_HOST:
+        if address[0] == target_host:
             fill_status(data, status)
     return status
 
@@ -189,93 +186,6 @@ def fill_status(packet, status):
         else:
             raise ValueError("Invalid packet")
 
-
-def get_records(domain):
-    """
-    Get all the records associated to domain parameter.
-    :param domain:
-    :return:
-    """
-    ids = [
-        'NONE',
-        'A',
-        'NS',
-        'MD',
-        'MF',
-        'CNAME',
-        'SOA',
-        'MB',
-        'MG',
-        'MR',
-        'NULL',
-        'WKS',
-        'PTR',
-        'HINFO',
-        'MINFO',
-        'MX',
-        'TXT',
-        'RP',
-        'AFSDB',
-        'X25',
-        'ISDN',
-        'RT',
-        'NSAP',
-        'NSAP-PTR',
-        'SIG',
-        'KEY',
-        'PX',
-        'GPOS',
-        'AAAA',
-        'LOC',
-        'NXT',
-        'SRV',
-        'NAPTR',
-        'KX',
-        'CERT',
-        'A6',
-        'DNAME',
-        'OPT',
-        'APL',
-        'DS',
-        'SSHFP',
-        'IPSECKEY',
-        'RRSIG',
-        'NSEC',
-        'DNSKEY',
-        'DHCID',
-        'NSEC3',
-        'NSEC3PARAM',
-        'TLSA',
-        'HIP',
-        'CDS',
-        'CDNSKEY',
-        'CSYNC',
-        'SPF',
-        'UNSPEC',
-        'EUI48',
-        'EUI64',
-        'TKEY',
-        'TSIG',
-        'IXFR',
-        'AXFR',
-        'MAILB',
-        'MAILA',
-        'ANY',
-        'URI',
-        'CAA',
-        'TA',
-        'DLV',
-    ]
-
-    for a in ids:
-        try:
-            answers = dns.resolver.resolve(domain, a)
-            for rdata in answers:
-                print(a, ':', rdata.to_text())
-
-        except Exception as e:
-            print(e)  # or pass
-
 tab = []
 class MyListener(ServiceListener):
 
@@ -306,10 +216,17 @@ if __name__ == '__main__':
         print(f"waiting for {my_card}\r")
 
     print(ip)
+    peer = "192.168.24.123"
+    sec_lvl = 2
+    password = b"\x00"*6
+    udp = create_udp_conn(peer)
+    tcp = create_tcp_conn(udp, password)
 
-    #print('\n'.join(ZeroconfServiceTypes.find()))
-    #udp = create_udp_conn("")
-    #tcp = create_tcp_conn(udp, b"\x00"*6)
+    c2 = CarControl(tcp, sec_lvl, password)
+    c2.set_headlights(1234)
 
-    #status  = fetch_status()
-    #print(status)
+    status = fetch_status(peer)
+    # it may take some time for the board to ACK the change
+    while status.headlights != 1234:
+        status = fetch_status()
+    print(status)
