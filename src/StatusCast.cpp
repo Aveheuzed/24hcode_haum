@@ -19,7 +19,11 @@ void StatusCast::loop() {
 	msg[len++] = 'I';
 	msg[len++] = 'S';
 
+
+	// payload 20 bytes
 	const constexpr std::array<status_t, 4> exportsA = { STATUS_RSSI, STATUS_IR, STATUS_SIMULATION, STATUS_HEADLIGHTS };
+
+	// payload 34 bytes
 	const constexpr std::array<status_t, 4> exportsB = { STATUS_COLOR, STATUS_BATTERY, STATUS_IMU, STATUS_PILOT };
 	const auto & exports = _last_msg_id ? exportsA : exportsB;
 	_last_msg_id ^= 1;

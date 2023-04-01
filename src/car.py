@@ -54,16 +54,100 @@ def listen_multicast():
     print("listening for multicast info")
 
     while True:
-    # For Python 3, change next line to "print(sock.recv(10240))"
-        print(sock.recv(10240))
+        print_status_packet(sock.recv(1024))
+
+def print_status_packet(packet):
+    if not packet.startswith(b"CIS"):
+        return
+    packet = packet[3:]
+
+    while len(packet):
+        srv = packet[0]
+        packet = packet[1:]
+        if srv == 0:
+            # STATUS_NO_REPORT
+            print("(no report)")
+        elif srv == 1:
+            # STATUS_RSSI
+            rssi = int.from_bytes(packet[:4], "little", signed=True)
+            packet = packet[4:]
+            print(f"RSSI: {rssi}")
+        elif srv == 2:
+            # STATUS_IR
+            ir = int.from_bytes(packet[:1], "little", signed=False)
+            packet = packet[1:]
+            print(f"IR: {ir}")
+        elif srv == 3:
+            # STATUS_SIMULATION
+            x = int.from_bytes(packet[:2], "little", signed=False)
+            packet = packet[2:]
+            y = int.from_bytes(packet[:2], "little", signed=False)
+            packet = packet[2:]
+            theta = int.from_bytes(packet[:2], "little", signed=False)
+            packet = packet[2:]
+            print(f"simu: {x=} {y=} {theta=}")
+        elif srv == 4:
+            # STATUS_HEADLIGHTS
+            hl = int.from_bytes(packet[:2], "little", signed=False)
+            packet = packet[2:]
+            print(f"Headlights: {hl}")
+        elif srv == 5:
+            # STATUS_COLOR
+            r = int.from_bytes(packet[0:1], "little", signed=False)
+            g = int.from_bytes(packet[1:2], "little", signed=False)
+            b = int.from_bytes(packet[2:3], "little", signed=False)
+            packet = packet[3:]
+            disp_r = int.from_bytes(packet[0:1], "little", signed=False)
+            disp_g = int.from_bytes(packet[1:2], "little", signed=False)
+            disp_b = int.from_bytes(packet[2:3], "little", signed=False)
+            packet = packet[3:]
+            print(f"Color: #{r:02X}{g:02X}{b:02X}")
+            print(f"Displayed color: #{disp_r:02X}{disp_g:02X}{disp_b:02X}")
+        elif srv == 6:
+            # STATUS_BATTERY
+            adc = int.from_bytes(packet[:2], "little", signed=False)
+            packet = packet[2:]
+            soc = int.from_bytes(packet[:2], "little", signed=False)
+            packet = packet[2:]
+            print(f"Battery: {adc=}  {soc=}")
+        elif srv == 7:
+            # STATUS_IMU
+            imu_x_x = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+            imu_x_y = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+            imu_x_z = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+
+            imu_g_x = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+            imu_g_y = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+            imu_g_z = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+
+            print(f"IMU: acceleration {imu_x_x} {imu_x_y} {imu_x_z}")
+            print(f"IMU: rotation {imu_g_x} {imu_g_y} {imu_g_z}")
+        elif srv == 8:
+            # STATUS_PILOT
+            throtlle = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+            steering = int.from_bytes(packet[:2], "little", signed=True)
+            packet = packet[2:]
+            started = int.from_bytes(packet[:1], "little", signed=False)
+            packet = packet[1:]
+            print(f"Pilot: {throtlle=} {steering=} {started=}")
+        else:
+            raise ValueError("Invalid packet")
+
 
 if __name__ == '__main__':
 
-    udp = UDPComm()
-    print("UDP up!")
-    tcp = TCPComm()
-    print("TCP up!")
-    tcp.upgrade_from_udp(udp, b"passwd")
-    print("TCP upgrade!")
+##    udp = UDPComm()
+##    print("UDP up!")
+##    tcp = TCPComm()
+##    print("TCP up!")
+##    tcp.upgrade_from_udp(udp, b"passwd")
+##    print("TCP upgrade!")
 
     listen_multicast()
