@@ -1,5 +1,6 @@
 import socket
 import struct
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 import threading
 import time
 from dataclasses import dataclass
@@ -13,9 +14,9 @@ MCAST_GRP = '239.255.0.1'
 MCAST_PORT = 4211
 
 
-def create_udp_conn():
+def create_udp_conn(remote_host):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect((REMOTE_HOST, REMOTE_PORT))
+    s.connect((remote_host, REMOTE_PORT))
     return s
 
 def create_tcp_conn(udp, lvl_2_pass):
@@ -98,7 +99,7 @@ class CarStatus:
     def is_complete(self):
         return not any(x is None for x in self.__dict__.values())
 
-def fetch_status():
+def fetch_status(target_host):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('', MCAST_PORT))
@@ -108,7 +109,7 @@ def fetch_status():
     status = CarStatus()
     while not status.is_complete():
         data, address = sock.recvfrom(1024)
-        if address[0] == REMOTE_HOST:
+        if address[0] == target_host:
             fill_status(data, status)
     return status
 
@@ -185,9 +186,47 @@ def fill_status(packet, status):
         else:
             raise ValueError("Invalid packet")
 
-if __name__ == '__main__':
-    udp = create_udp_conn()
-    tcp = create_tcp_conn(udp, b"\x00"*6)
+tab = []
+class MyListener(ServiceListener):
 
-    status  = fetch_status()
+    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        print(f"Service {name} updated")
+
+    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        print(f"Service {name} removed")
+
+    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        info = zc.get_service_info(type_, name)
+        tab.append((name.split('.')[0], info.addresses))
+
+if __name__ == '__main__':
+    my_card = "CarNode-Simu2"
+    ip = 0
+    found = False
+    zeroconf = Zeroconf()
+    listener = MyListener()
+    browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
+
+    while not found:
+        for e in tab:
+            if e[0] == my_card:
+                found = True
+                ip = e[1]
+                break
+        print(f"waiting for {my_card}\r")
+
+    print(ip)
+    peer = "192.168.24.123"
+    sec_lvl = 2
+    password = b"\x00"*6
+    udp = create_udp_conn(peer)
+    tcp = create_tcp_conn(udp, password)
+
+    c2 = CarControl(tcp, sec_lvl, password)
+    c2.set_headlights(1234)
+
+    status = fetch_status(peer)
+    # it may take some time for the board to ACK the change
+    while status.headlights != 1234:
+        status = fetch_status()
     print(status)
