@@ -3,14 +3,27 @@ import struct
 import threading
 
 LOCAL_PORT = 65432
-REMOTE_HOST = "192.168.24.1"
+REMOTE_HOST = "192.168.24.123"
 REMOTE_PORT = 4210
+
+
+ENGINE_CTRL = b"\x10"
+PILOTE_CTRL = b"\x11"
+HEADLIGHT_CTRL = b"\x12"
+
+LIMIT_SPEED = 0X30
+INVERT_STEERING = 0X31
+INVERT_THROTTLE = 0X32
+SET_COLOR = 0x33
+
+ENGINE_ON = b"\x01"
+ENGINE_OFF = b"\x00"
 
 class AbstractComm(socket.socket):
 
-    def send_command(self, lvl=1, passwd=b"\x00"*6, command=b""):
-        msg = b"CIS" + bytes([lvl]) + passwd + command
-
+    def send_command(self, lvl=1, passwd=b"\x00"*6, command=b"\x00", arg=b"\x00"):
+        msg = b"CIS" + bytes([lvl]) + passwd + command + arg
+        print(msg)
         if self.send(msg) != len(msg) :
             raise RuntimeError("UDP command failed")
 
@@ -29,7 +42,7 @@ class TCPComm(AbstractComm) :
 
     def upgrade_from_udp(self, updcomm, passwd2):
         updcomm.send_command(lvl=2, passwd=passwd2,
-                command=b"\x01"+LOCAL_PORT.to_bytes(2, "big", signed=False)
+                             command=b"\x01" + LOCAL_PORT.to_bytes(2, "little", signed=False)
         )
         self._client, self._client_addr = self.accept()
 
@@ -55,8 +68,8 @@ def listen_multicast():
 
     while True:
         data, address = sock.recvfrom(1024)
-        print(f"Received data from {address}")
-        print_status_packet(data)
+        if  address[0] == REMOTE_HOST:
+            print_status_packet(data)
 
 def print_status_packet(packet):
     if not packet.startswith(b"CIS"):
@@ -143,13 +156,37 @@ def print_status_packet(packet):
             raise ValueError("Invalid packet")
 
 
+def start_engine(udp):
+    udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=ENGINE_CTRL, arg=ENGINE_ON)
+def stop_engine(udp):
+    udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=ENGINE_CTRL, arg=ENGINE_OFF)
+
+def change_headlights(udp, level):
+    udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=HEADLIGHT_CTRL,
+                     arg=int.to_bytes(level, 2, "little", signed=False))
+
+def control_pilote(udp, throttle, steering):
+    udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=PILOTE_CTRL,
+                     arg=(throttle << 16 | steering).to_bytes(length=4, byteorder="little", signed=False))
+
+
 if __name__ == '__main__':
 
-##    udp = UDPComm()
-##    print("UDP up!")
-##    tcp = TCPComm()
-##    print("TCP up!")
-##    tcp.upgrade_from_udp(udp, b"passwd")
-##    print("TCP upgrade!")
+    udp = UDPComm()
+    #udp.send_command(lvl=2, passwd=b"\x00"*6, command=b"\x12\x00\x07")
+    #udp.send_command(lvl=1, passwd=b"\x00"*6, command=b"\x10\x01")
+    #udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=b"\x12\x00\x07")
+    udp.send_command(lvl=1, passwd=b"\x00"*6, command=b"\x21\x00\x01\x02\x03\x04\x05")
+    start_engine(udp)
+    change_headlights(udp, 700)
+    control_pilote(udp, 200, 200)
 
+
+
+##    print("UDP up!")
+    #tcp = TCPComm()
+##    print("TCP up!")
+    #tcp.upgrade_from_udp(udp, b"\x00\x00\x00\x00\x00\x00")
+##    print("TCP upgrade!")
+#
     listen_multicast()
