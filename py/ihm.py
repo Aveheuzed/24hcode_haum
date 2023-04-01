@@ -5,15 +5,12 @@ from tkinter import ttk
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 import time
 from threading import *
-#from PIL import ImageTk, Image
-#import cv2
-
-from car import create_udp_conn, create_tcp_conn, CarControl, fetch_status
+from car import *
 
 class App:
     def __init__(self, root):
         self.initControllerKeyboard()
-        
+
         self.initValues()
 
         self.ip = None
@@ -40,12 +37,12 @@ class App:
 
         #self.initZQSDUI(root)
 
-        self.initAccelerometerUI(root)        
-        self.initGyroscopeUI(root)        
+        self.initAccelerometerUI(root)
+        self.initGyroscopeUI(root)
 
-        self.initBatteryUI(root)        
-        self.initBlinkerUI(root)        
-        self.initRSSIUI(root)        
+        self.initBatteryUI(root)
+        self.initBlinkerUI(root)
+        self.initRSSIUI(root)
 
         self.initCarSelectUI(root)
         self.bindings(root)
@@ -71,7 +68,7 @@ class App:
         self.accelerometerX = 0
         self.accelerometerY = 0
         self.accelerometerZ = 0
-        
+
         self.gyroscopeX = 0
         self.gyroscopeY = 0
         self.gyroscopeZ = 0
@@ -231,7 +228,7 @@ class App:
 
     def updateEngineUI(self, engine):
         self.LabelEngine["text"] = "Engine status: " + str(engine)
-    
+
     def throttleIncrease(self):
         print('increase throttle')
         self.throttle = int(min(self.SPEED_MAX, self.throttle + 819.2))
@@ -239,7 +236,7 @@ class App:
     def throttleDecrease(self):
         print('decrease throttle')
         self.throttle = int(max(self.SPEED_MIN, self.throttle - 819.2))
-        
+
     def startEngine(self):
         if(self.ip != None):
             print("startEngine")
@@ -375,7 +372,7 @@ class App:
 
     ##################################################
     ##################################################
-    ### Accelerometer 
+    ### Accelerometer
     ##################################################
     ##################################################
 
@@ -407,7 +404,7 @@ class App:
         self.LabelAccelerometerZ["justify"] = "center"
         self.LabelAccelerometerZ["text"] = "Z: "
         self.LabelAccelerometerZ.place(x=720,y=85,width=100,height=25)
-    
+
     def updateAccelerometerUI(self, x, y, z):
         self.LabelAccelerometerX["text"] = x
         self.LabelAccelerometerY["text"] = y
@@ -415,7 +412,7 @@ class App:
 
     ##################################################
     ##################################################
-    ### Gyroscope 
+    ### Gyroscope
     ##################################################
     ##################################################
 
@@ -455,7 +452,7 @@ class App:
 
     ##################################################
     ##################################################
-    ### RSSI 
+    ### RSSI
     ##################################################
     ##################################################
 
@@ -479,7 +476,7 @@ class App:
 
     ##################################################
     ##################################################
-    ### Car select 
+    ### Car select
     ##################################################
     ##################################################
 
@@ -499,7 +496,7 @@ class App:
         self.LabelCarSelection["font"] = ft
         self.LabelCarSelection["justify"] = "center"
         self.LabelCarSelection["text"] = "Connected to: " + self.selectedCar.get()
-        self.LabelCarSelection.place(x=100,y=230,width=110,height=25)        
+        self.LabelCarSelection.place(x=100,y=230,width=110,height=25)
 
     def updateRSSIUI(self, rssi):
         self.LabelRSSIValue["text"] = rssi
@@ -513,17 +510,17 @@ class App:
                 self.udp = create_udp_conn(e[1])
                 self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
                 self.carControl = CarControl(self.udp, self.tcp, 2, b"\x00"*6)
-                
+
                 print("set ip: " + str(self.ip))
 
 
 
     ##################################################
     ##################################################
-    ### Battery 
+    ### Battery
     ##################################################
     ##################################################
-    
+
     def initBatteryUI(self, root):
         LabelBatteryADC=tk.Label(root)
         ft = tkFont.Font(family='Times',size=10)
@@ -553,7 +550,7 @@ class App:
 
     ##################################################
     ##################################################
-    ### Blinker 
+    ### Blinker
     ##################################################
     ##################################################
     def initBlinkerUI(self, root):
@@ -575,10 +572,10 @@ class App:
         self.LabelBlinkerValue["justify"] = "center"
         self.LabelBlinkerValue["text"] = "Blinker: "
         self.LabelBlinkerValue.place(x=500,y=310,width=100,height=25)
-        
+
     def updateBlinkerInfo(self):
         self.LabelBlinkerValue["text"] = "Blinker: "
-    
+
     def CheckBoxBlinker_command(self):
         print(self.tmpBlinker.get())
         #if (self.tmpBlinker.get() == 1):
@@ -592,7 +589,7 @@ class App:
 
     ##################################################
     ##################################################
-    ### Other 
+    ### Other
     ##################################################
     ##################################################
     def upadteUI(self):
@@ -619,13 +616,13 @@ class App:
             ## Retrieve new values
 
             if(self.ip != None):
-                if(self.engine):        
+                if(self.engine):
                     #print("pilot" + str(self.throttle) + "," +  str(self.steer))
                     self.carControl.pilot(self.throttle, self.steer)
 
                 #self.rearlight = '#%02x%02x%02x' % (status.disp_r, status.disp_g, status.disp_b)
             time.sleep(0.05)
-    
+
     def threadCommand(self):
         t1=Thread(target=self.updateValues)
         t1.start()
@@ -650,7 +647,7 @@ class MyListener(ServiceListener):
         tab.append((name.split('.')[0], ".".join(str(val) for val in [info.addresses[0][i] for i in range(0, len(info.addresses[0]))])))
 
 if __name__ == "__main__":
-    
+
     zeroconf = Zeroconf()
     listener = MyListener()
     browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
@@ -663,10 +660,10 @@ if __name__ == "__main__":
     app = App(root)
 
     ##############################
-    # car.py    
+    # car.py
     ##############################
 
-    
+
     ##############################
     # Start Video
     ##############################
@@ -677,5 +674,5 @@ if __name__ == "__main__":
 
 
 
-    
+
     root.mainloop()

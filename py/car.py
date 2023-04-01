@@ -4,6 +4,7 @@ import struct
 import threading
 import time
 from dataclasses import dataclass
+from select import select
 
 
 LOCAL_PORT = 65432
@@ -26,11 +27,14 @@ def create_tcp_conn(udp, lvl_2_pass):
 
     udpcontrol = CarControl(udp, tcp, 2, lvl_2_pass)
 
-    udpcontrol.open_tcp_link(LOCAL_PORT)
-
-    client, client_addr = tcp.accept()
-    print("TCP upgrade from", client_addr)
-    return client
+    while True:
+        udpcontrol.open_tcp_link(LOCAL_PORT)
+        ack = select([tcp], [], [], timeout=1.0)[0]
+        if not ack:
+            continue
+        client, client_addr = tcp.accept()
+        print("TCP upgrade from", client_addr)
+        return client
 
 class CarControl :
 
@@ -193,10 +197,3 @@ def fill_status(packet, status):
             packet = packet[1:]
         else:
             raise ValueError("Invalid packet")
-
-
-#    while not found:
-#        for e in tab:
-#            if e[0] == name:
-#                return e[1]
-#        print(f"waiting for {name}\r")
