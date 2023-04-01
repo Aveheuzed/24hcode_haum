@@ -38,7 +38,6 @@ class MySocket:
 def send_command(level, pwd, cmd, arg):
     UDP_IP = "192.168.24.1"
     UDP_PORT = 4210
-    CMD = chr(0x10) + str(0)
     MESSAGE = bytes("CIS" + level + pwd + cmd + arg, encoding='utf-8')
 
     print("UDP target IP:", UDP_IP)
@@ -48,9 +47,9 @@ def send_command(level, pwd, cmd, arg):
     sock = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP
     sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+    print("sended")
     recv = sock.recv(2048)
     print("recv ".join(recv))
-    print("sended")
 
 def tcp_server(name):
 
@@ -61,7 +60,7 @@ def tcp_server(name):
         s.bind((HOST, PORT))
         s.listen()
         send_command("1", "000000", chr(0x10), str(1)) #engine on
-        send_command("1", "000000", chr(0x10), str(0)) #engine off
+        #send_command("1", "000000", chr(0x10), str(0)) #engine off
         conn, addr = s.accept()
         with conn:
             print(f"Connected by {addr}")
