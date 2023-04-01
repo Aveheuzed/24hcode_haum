@@ -54,7 +54,9 @@ def listen_multicast():
     print("listening for multicast info")
 
     while True:
-        print_status_packet(sock.recv(1024))
+        data, address = sock.recvfrom(1024)
+        print(f"Received data from {address}")
+        print_status_packet(data)
 
 def print_status_packet(packet):
     if not packet.startswith(b"CIS"):
