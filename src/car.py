@@ -1,76 +1,42 @@
 import socket
 import threading
 
-class MySocket:
-    """demonstration class only
-      - coded for clarity, not efficiency
-    """
+LOCAL_PORT = 65432
+REMOTE_HOST = "192.168.24.1"
+REMOTE_PORT = 4210
 
-    def __init__(self, sock=None):
-        if sock is None:
-            self.sock = socket.socket(
-                            socket.AF_INET, socket.SOCK_STREAM)
-        else:
-            self.sock = sock
+class AbstractComm(socket.socket):
 
-    def connect(self, host, port):
-        self.sock.connect((host, port))
+    def send_command(self, lvl=1, passwd=b"\x00"*6, command=b""):
+        msg = b"CIS" + bytes([lvl]) + passwd + command
 
-    def mysend(self, msg):
-        totalsent = 0
-        while totalsent < MSGLEN:
-            sent = self.sock.send(msg[totalsent:])
-            if sent == 0:
-                raise RuntimeError("socket connection broken")
-            totalsent = totalsent + sent
+        if self.send(msg) != len(msg) :
+            raise RuntimeError("UDP command failed")
 
-    def myreceive(self):
-        chunks = []
-        bytes_recd = 0
-        while bytes_recd < MSGLEN:
-            chunk = self.sock.recv(min(MSGLEN - bytes_recd, 2048))
-            if chunk == b'':
-                raise RuntimeError("socket connection broken")
-            chunks.append(chunk)
-            bytes_recd = bytes_recd + len(chunk)
-        return b''.join(chunks)
+class UDPComm(AbstractComm):
 
-def send_command(level, pwd, cmd, arg):
-    UDP_IP = "192.168.24.1"
-    UDP_PORT = 4210
-    MESSAGE = bytes("CIS" + level + pwd + cmd + arg, encoding='utf-8')
+    def __init__(self):
+        super().__init__(socket.AF_INET, socket.SOCK_DGRAM)
+        self.connect((REMOTE_HOST, REMOTE_PORT))
 
-    print("UDP target IP:", UDP_IP)
-    print("UDP target port:", UDP_PORT)
-    print("message:", MESSAGE)
+class TCPComm(AbstractComm) :
 
-    sock = socket.socket(socket.AF_INET, # Internet
-                     socket.SOCK_DGRAM) # UDP
-    sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
-    print("sended")
-    recv = sock.recv(2048)
-    print("recv ".join(recv))
+    def __init__(self):
+        super().__init__(socket.AF_INET, socket.SOCK_STREAM)
+        self.bind(("", LOCAL_PORT))
+        self.listen(16)
 
-def tcp_server(name):
-
-    HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-    PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen()
-        send_command("1", "000000", chr(0x10), str(1)) #engine on
-        #send_command("1", "000000", chr(0x10), str(0)) #engine off
-        conn, addr = s.accept()
-        with conn:
-            print(f"Connected by {addr}")
-            while True:
-                data = conn.recv(1024)
-                print(f"{data}", data)
+    def upgrade_from_udp(self, updcomm, passwd2):
+        updcomm.send_command(lvl=2, passwd=passwd2,
+                command=b"\x01"+LOCAL_PORT.to_bytes(2, "big", signed=False)
+        )
+        self._client, self._client_addr = self.accept()
 
 if __name__ == '__main__':
 
-    tcp_server("toto")
-
-
-
+    udp = UDPComm()
+    print("UDP up!")
+    tcp = TCPComm()
+    print("TCP up!")
+    tcp.upgrade_from_udp(udp, b"passwd")
+    print("TCP upgrade!")
