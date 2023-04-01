@@ -1,4 +1,5 @@
 import socket
+import struct
 import threading
 
 class MySocket:
@@ -68,9 +69,34 @@ def tcp_server(name):
                 data = conn.recv(1024)
                 print(f"{data}", data)
 
+
+def listen_multicast():
+    MCAST_GRP = '239.255.0.1'
+    MCAST_PORT = 4211
+    IS_ALL_GROUPS = True
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if IS_ALL_GROUPS:
+        # on this port, receives ALL multicast groups
+        sock.bind(('', MCAST_PORT))
+    else:
+        # on this port, listen ONLY to MCAST_GRP
+        sock.bind((MCAST_GRP, MCAST_PORT))
+    mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+    print("listening for multicast info")
+
+    while True:
+    # For Python 3, change next line to "print(sock.recv(10240))"
+        print(sock.recv(10240))
+
 if __name__ == '__main__':
 
-    tcp_server("toto")
+    listen_multicast()
+    #tcp_server("toto")
 
 
 
