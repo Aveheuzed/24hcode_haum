@@ -2,6 +2,8 @@ import tkinter as tk
 import tkinter.font as tkFont
 from tkinter.colorchooser import askcolor
 from tkinter import ttk
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+import time
 #from PIL import ImageTk, Image
 #import cv2
 
@@ -659,9 +661,28 @@ def video_stream():
     lmain.configure(image=imgtk)
     lmain.after(1, video_stream) 
 
+tab = []
+class MyListener(ServiceListener):
 
+    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        print(f"Service {name} updated")
+
+    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        print(f"Service {name} removed")
+
+    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        info = zc.get_service_info(type_, name)
+        tab.append((name.split('.')[0], info.addresses))
 
 if __name__ == "__main__":
+
+    zeroconf = Zeroconf()
+    listener = MyListener()
+    browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
+    print("getting cars list...")
+    time.sleep(4)
+    print(tab)
+
     udp = create_udp_conn()
     tcp = create_tcp_conn(udp, b"\x00"*6)
 

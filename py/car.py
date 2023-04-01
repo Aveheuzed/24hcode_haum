@@ -1,6 +1,6 @@
 import socket
 import struct
-from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+
 import threading
 import time
 from dataclasses import dataclass
@@ -186,29 +186,9 @@ def fill_status(packet, status):
         else:
             raise ValueError("Invalid packet")
 
-tab = []
-class MyListener(ServiceListener):
 
-    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        print(f"Service {name} updated")
-
-    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        print(f"Service {name} removed")
-
-    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        info = zc.get_service_info(type_, name)
-        tab.append((name.split('.')[0], info.addresses))
-
-def get_car_ip(name):
-    found = False
-    zeroconf = Zeroconf()
-    listener = MyListener()
-    browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
-
-    while not found:
-        for e in tab:
-            if e[0] == name:
-                found = True
-                return e[1]
-                break
-        print(f"waiting for {my_card}\r")
+#    while not found:
+#        for e in tab:
+#            if e[0] == name:
+#                return e[1]
+#        print(f"waiting for {name}\r")
