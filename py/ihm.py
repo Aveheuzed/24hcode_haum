@@ -2,10 +2,10 @@ import tkinter as tk
 import tkinter.font as tkFont
 from tkinter.colorchooser import askcolor
 from tkinter import ttk
-from PIL import ImageTk, Image
-import cv2
+#from PIL import ImageTk, Image
+#import cv2
 
-from car import UDPComm
+from car import create_udp_conn, create_tcp_conn, CarControl, fetch_status
 
 class App:
     def __init__(self, root):
@@ -46,6 +46,9 @@ class App:
         self.updateValues()
 
     def initValues(self):
+        self.carControl = CarControl(tcp, 2, b"\x00"*6)
+
+        self.engine = 0
         self.speed = 0
         self.steer = 0
         self.headlight = 0
@@ -154,6 +157,42 @@ class App:
     ##################################################
 
     def initSpeedUI(self, root):
+        LabelEngine=tk.Label(root)
+        ft = tkFont.Font(family='Times',size=10)
+        LabelEngine["font"] = ft
+        LabelEngine["fg"] = "#333333"
+        LabelEngine["justify"] = "center"
+        LabelEngine["text"] = "Engine"
+        LabelEngine.place(x=0,y=10,width=100,height=25)
+
+        ButtonEngine=tk.Button(root)
+        ButtonEngine["bg"] = "#e9e9ed"
+        ft = tkFont.Font(family='Times',size=10)
+        ButtonEngine["font"] = ft
+        ButtonEngine["fg"] = "#000000"
+        ButtonEngine["justify"] = "center"
+        ButtonEngine["text"] = "On"
+        ButtonEngine.place(x=100,y=10,width=50,height=20)
+        ButtonEngine["command"] = self.ButtonEngineOn_command
+
+        ButtonEngine=tk.Button(root)
+        ButtonEngine["bg"] = "#e9e9ed"
+        ft = tkFont.Font(family='Times',size=10)
+        ButtonEngine["font"] = ft
+        ButtonEngine["fg"] = "#000000"
+        ButtonEngine["justify"] = "center"
+        ButtonEngine["text"] = "Off"
+        ButtonEngine.place(x=150,y=10,width=50,height=20)
+        ButtonEngine["command"] = self.ButtonEngineOff_command
+
+        self.LabelEngine=tk.Label(root)
+        ft = tkFont.Font(family='Times',size=10)
+        self.LabelEngine["font"] = ft
+        self.LabelEngine["fg"] = "#333333"
+        self.LabelEngine["justify"] = "center"
+        self.LabelEngine["text"] = "Engine status: " + str(self.engine)
+        self.LabelEngine.place(x=200,y=10,width=100,height=25)
+
         self.ScaleSpeed=tk.Scale(root)
         ft = tkFont.Font(family='Times',size=10)
         self.ScaleSpeed["from"] = -100
@@ -172,30 +211,46 @@ class App:
         self.LabelSpeed["text"] = "Speed: " + str(self.speed)
         self.LabelSpeed.place(x=50,y=30,width=100,height=25)
 
-    def updateSpeedInfo(self):
+
+    def updateSpeedUI(self):
         self.LabelSpeed["text"] = "Speed: " + str(int(self.speed))
         self.ScaleSpeed.set(self.speed * 100 / self.SPEED_MAX)
+
+    def updateEngineUI(self):
+        self.LabelEngine["text"] = "Engine status: " + str(self.engine)
     
     def speedIncrease(self):
-        self.speed = min(self.SPEED_MAX, self.speed + 819.2)
-        self.updateSpeedInfo()
+        #self.speed = min(self.SPEED_MAX, self.speed + 819.2)
+        #self.updateSpeedUI()
+        print(int(min(self.SPEED_MAX, self.speed + 819.2)), self.steer)
+        self.carControl.pilot(int(min(self.SPEED_MAX, self.speed + 819.2)), self.steer)
 
     def speedDecrease(self):
-        self.speed = max(self.SPEED_MIN, self.speed - 819.2)
-        self.updateSpeedInfo()
+        #self.speed = max(self.SPEED_MIN, self.speed - 819.2)
+        #self.updateSpeedUI()
+        self.carControl.pilot(int(max(self.SPEED_MIN, self.speed - 819.2)), self.steer)
 
     def setForward(self):
-        self.speed = 2048
-        self.updateSpeedInfo()
+        #self.speed = 2048
+        #self.updateSpeedUI()
+        self.carControl.pilot(2048, self.steer)
 
     def setStop(self):
-        self.speed = 0
-        self.updateSpeedInfo()
+        #self.speed = 0
+        #self.updateSpeedUI()
+        self.carControl.pilot(0, self.steer)
 
     # UI Scale
     def ScaleSpeed_command(self, value):
-        self.speed=int(value) * self.SPEED_MAX / 100
-        self.updateSpeedInfo()
+        #self.speed=int(value) * self.SPEED_MAX / 100
+        #self.updateSpeedUI()
+        self.carControl.pilot(int(int(value) * self.SPEED_MAX / 100), self.steer)
+
+    def ButtonEngineOn_command(self):
+        self.carControl.engine_on()
+
+    def ButtonEngineOff_command(self):
+        self.carControl.engine_off()
 
     ##################################################
     ##################################################
@@ -227,17 +282,20 @@ class App:
         self.ScaleSteering.set(self.steer * 180 / self.STEER_MAX)
 
     def steerRight(self):
-        self.steer = min(self.STEER_MAX, self.steer + 3276.8)
-        self.updateSteerUI()
+        #self.steer = min(self.STEER_MAX, self.steer + 3276.8)
+        #self.updateSteerUI()
+        self.carControl.pilot(self.speed, int(min(self.STEER_MAX, self.steer + 3276.8)))
 
     def steerLeft(self):
-        self.steer = max(self.STEER_MIN, self.steer - 3276.8)
-        self.updateSteerUI()
+        #self.steer = max(self.STEER_MIN, self.steer - 3276.8)
+        #self.updateSteerUI()
+        self.carControl.pilot(self.speed, int(max(self.STEER_MIN, self.steer - 3276.8)))
 
     # UI Scale
     def ScaleSteering_command(self, value: int):
-        self.steer=int(value) * self.STEER_MAX / 180
-        self.updateSteerUI()
+        #self.steer=int(value) * self.STEER_MAX / 180
+        #self.updateSteerUI()
+        self.carControl.pilot(self.speed, int(int(value) * self.STEER_MAX / 180))
 
     ##################################################
     ##################################################
@@ -269,17 +327,20 @@ class App:
         self.ScaleHeadlight.set(self.headlight * 100 / self.HEADLIGHT_MAX)
 
     def headlightUp(self):
-        self.headlight = min(self.HEADLIGHT_MAX, self.headlight + 6553.5)
-        self.updateHeadlightUI()
+        #self.headlight = min(self.HEADLIGHT_MAX, self.headlight + 6553.5)
+        #self.updateHeadlightUI()
+        self.carControl.set_headlights(int(min(self.HEADLIGHT_MAX, self.headlight + 6553.5)))
 
     def headlightDown(self):
-        self.headlight = max(self.HEADLIGHT_MIN, self.headlight - 6553.5)
-        self.updateHeadlightUI()
+        #self.headlight = max(self.HEADLIGHT_MIN, self.headlight - 6553.5)
+        #self.updateHeadlightUI()
+        self.carControl.set_headlights(int(max(self.HEADLIGHT_MIN, self.headlight - 6553.5)))
 
     # UI Scale
     def ScaleHeadlight_command(self, value):
-        self.headlight=int(value) * self.HEADLIGHT_MAX / 100
-        self.updateHeadlightUI()
+        #self.headlight=int(value) * self.HEADLIGHT_MAX / 100
+        #self.updateHeadlightUI()
+        self.carControl.set_headlights(int(int(value) * self.HEADLIGHT_MAX / 100))
 
     ##################################################
     ##################################################
@@ -310,10 +371,12 @@ class App:
         self.LabelColorRear.configure(bg=self.rearlight)
         self.LabelColorRear["text"] = self.rearlight
 
-
     def ButtonColorChooser_command(self):
-        self.rearlight = askcolor(title="Tkinter Color Chooser")[1]
-        self.updateRearlightUI()
+        #self.rearlight = askcolor(title="Tkinter Color Chooser")[1]
+        #self.updateRearlightUI()
+        r, g, b = askcolor(title="Tkinter Color Chooser")[0]
+
+        self.carControl.set_color(int(r), int(g), int(b))
 
     ##################################################
     ##################################################
@@ -529,10 +592,12 @@ class App:
     ##################################################
     ##################################################
     def upadteUI(self):
+        self.updateEngineUI()
         self.updateSteerUI()
-        self.updateSpeedInfo()
+        self.updateSpeedUI()
         self.updateHeadlightUI()
         self.updateRearlightUI()
+
 
         self.updateAccelerometerUI()
         self.updateGyroscopeUI()
@@ -543,12 +608,44 @@ class App:
 
     def updateValues(self):
         ## Retrieve new values
+        status  = fetch_status()
+        if(status.started):        
+            self.carControl.pilot(status.throttle, status.steering)
 
-        #self.initValues()
+        #print("Throttle: " + str(status.throttle) + ", Steer: " + str(status.steering))
+
+        self.engine = status.started
+        self.speed = status.throttle
+        self.steer = status.steering
+        self.headlight = status.headlights
+        self.rearlight = '#%02x%02x%02x' % (status.r, status.g, status.b)
+        #self.rearlight = '#%02x%02x%02x' % (status.disp_r, status.disp_g, status.disp_b)
+
+        self.blinker = False
+        self.tmpBlinker = tk.IntVar()        
+
+        #status.ir
+
+        self.rssi = status.rssi
+        self.batterySOC = status.batt_soc
+        self.batteryADC = status.batt_adc
+
+        self.accelerometerX = status.imu_xl_x
+        self.accelerometerY = status.imu_xl_y
+        self.accelerometerZ = status.imu_xl_z
+        
+        self.gyroscopeX = status.imu_g_x
+        self.gyroscopeY = status.imu_g_y
+        self.gyroscopeZ = status.imu_g_z
+
+        self.carList = ["Jan","Feb","Mar"]
+
+        self.selectedCar = tk.StringVar()
+        self.selectedCar.set(None) # default value
 
         self.upadteUI()
 
-        self.root.after(1000, self.updateValues)
+        self.root.after(100, self.updateValues)
     
 
 # function for video streaming
@@ -565,22 +662,24 @@ def video_stream():
 
 
 if __name__ == "__main__":
+    udp = create_udp_conn()
+    tcp = create_tcp_conn(udp, b"\x00"*6)
+
     root = tk.Tk()
     app = App(root)
 
     ##############################
     # car.py    
     ##############################
-    udp = UDPComm()
 
-
+    
     ##############################
     # Start Video
     ##############################
-    cap = cv2.VideoCapture(0)
-    lmain = tk.Label(root)
-    lmain.place(x=10,y=500,width=1000,height=500)
-    video_stream()
+    #cap = cv2.VideoCapture(0)
+    #lmain = tk.Label(root)
+    #lmain.place(x=10,y=500,width=1000,height=500)
+    #video_stream()
 
 
 
