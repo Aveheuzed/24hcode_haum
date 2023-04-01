@@ -41,13 +41,13 @@ class CarControl :
 
     def _generic_send(self, command):
         self.socket.send(b"CIS"
-                       + self.lvl.to_bytes(1)
+                       + self.lvl.to_bytes(1, "big")
                        + self.password
                        + command
         )
 
     def open_tcp_link(self, port):
-        self._generic_send(b"\x01"+port.to_bytes(2))
+        self._generic_send(b"\x01"+port.to_bytes(2, "big"))
 
     def engine_on(self):
         self._generic_send(b"\x10\x01")

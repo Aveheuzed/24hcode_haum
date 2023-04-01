@@ -13,7 +13,8 @@ class App:
     def __init__(self, root):
         
         self.initValues()
-        
+        self.udp = None
+        self.tcp =None
         #setting title
         root.title("undefined")
 
@@ -48,8 +49,6 @@ class App:
         self.updateValues()
 
     def initValues(self):
-        self.carControl = CarControl(tcp, 2, b"\x00"*6)
-
         self.engine = 0
         self.speed = 0
         self.steer = 0
@@ -70,7 +69,7 @@ class App:
         self.gyroscopeY = 0
         self.gyroscopeZ = 0
 
-        self.carList = ["Jan","Feb","Mar"]
+        self.carList = tabName
 
         self.selectedCar = tk.StringVar()
         self.selectedCar.set(None) # default value
@@ -514,6 +513,13 @@ class App:
     def OptionMenuCarSelect_command(self, value):
         self.LabelCarSelection["text"] = "Connected to: " + self.selectedCar.get()
 
+        for e in tab:
+            if e[0] == self.selectedCar.get():
+                self.udp = create_udp_conn(e[1])
+                self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
+                self.carControl = CarControl(self.tcp, 2, b"\x00"*6)
+
+
     ##################################################
     ##################################################
     ### Battery 
@@ -610,45 +616,46 @@ class App:
 
     def updateValues(self):
         ## Retrieve new values
-        status  = fetch_status()
-        if(status.started):        
-            self.carControl.pilot(status.throttle, status.steering)
+        if(self.tcp):
+            status  = fetch_status(self.selectedCar[1])
+            if(status.started):        
+                self.carControl.pilot(status.throttle, status.steering)
 
-        #print("Throttle: " + str(status.throttle) + ", Steer: " + str(status.steering))
+            #print("Throttle: " + str(status.throttle) + ", Steer: " + str(status.steering))
 
-        self.engine = status.started
-        self.speed = status.throttle
-        self.steer = status.steering
-        self.headlight = status.headlights
-        self.rearlight = '#%02x%02x%02x' % (status.r, status.g, status.b)
-        #self.rearlight = '#%02x%02x%02x' % (status.disp_r, status.disp_g, status.disp_b)
+            self.engine = status.started
+            self.speed = status.throttle
+            self.steer = status.steering
+            self.headlight = status.headlights
+            self.rearlight = '#%02x%02x%02x' % (status.r, status.g, status.b)
+            #self.rearlight = '#%02x%02x%02x' % (status.disp_r, status.disp_g, status.disp_b)
 
-        self.blinker = False
-        self.tmpBlinker = tk.IntVar()        
+            self.blinker = False
+            self.tmpBlinker = tk.IntVar()        
 
-        #status.ir
+            #status.ir
 
-        self.rssi = status.rssi
-        self.batterySOC = status.batt_soc
-        self.batteryADC = status.batt_adc
+            self.rssi = status.rssi
+            self.batterySOC = status.batt_soc
+            self.batteryADC = status.batt_adc
 
-        self.accelerometerX = status.imu_xl_x
-        self.accelerometerY = status.imu_xl_y
-        self.accelerometerZ = status.imu_xl_z
+            self.accelerometerX = status.imu_xl_x
+            self.accelerometerY = status.imu_xl_y
+            self.accelerometerZ = status.imu_xl_z
+            
+            self.gyroscopeX = status.imu_g_x
+            self.gyroscopeY = status.imu_g_y
+            self.gyroscopeZ = status.imu_g_z
+
+            self.carList = ["Jan","Feb","Mar"]
+
+            self.selectedCar = tk.StringVar()
+            self.selectedCar.set(None) # default value
+
+            self.upadteUI()
+
+            self.root.after(100, self.updateValues)
         
-        self.gyroscopeX = status.imu_g_x
-        self.gyroscopeY = status.imu_g_y
-        self.gyroscopeZ = status.imu_g_z
-
-        self.carList = ["Jan","Feb","Mar"]
-
-        self.selectedCar = tk.StringVar()
-        self.selectedCar.set(None) # default value
-
-        self.upadteUI()
-
-        self.root.after(100, self.updateValues)
-    
 
 # function for video streaming
 def video_stream():
@@ -661,6 +668,7 @@ def video_stream():
     lmain.configure(image=imgtk)
     lmain.after(1, video_stream) 
 
+tabName = []
 tab = []
 class MyListener(ServiceListener):
 
@@ -672,7 +680,8 @@ class MyListener(ServiceListener):
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         info = zc.get_service_info(type_, name)
-        tab.append((name.split('.')[0], info.addresses))
+        tabName.append(name.split('.')[0])
+        tab.append((name.split('.')[0], ".".join(str(val) for val in [info.addresses[0][i] for i in range(0, len(info.addresses[0]))])))
 
 if __name__ == "__main__":
 
@@ -683,8 +692,6 @@ if __name__ == "__main__":
     time.sleep(4)
     print(tab)
 
-    udp = create_udp_conn()
-    tcp = create_tcp_conn(udp, b"\x00"*6)
 
     root = tk.Tk()
     app = App(root)
