@@ -199,9 +199,7 @@ class MyListener(ServiceListener):
         info = zc.get_service_info(type_, name)
         tab.append((name.split('.')[0], info.addresses))
 
-if __name__ == '__main__':
-    my_card = "CarNode-Simu2"
-    ip = 0
+def get_car_ip(name):
     found = False
     zeroconf = Zeroconf()
     listener = MyListener()
@@ -209,24 +207,8 @@ if __name__ == '__main__':
 
     while not found:
         for e in tab:
-            if e[0] == my_card:
+            if e[0] == name:
                 found = True
-                ip = e[1]
+                return e[1]
                 break
         print(f"waiting for {my_card}\r")
-
-    print(ip)
-    peer = "192.168.24.123"
-    sec_lvl = 2
-    password = b"\x00"*6
-    udp = create_udp_conn(peer)
-    tcp = create_tcp_conn(udp, password)
-
-    c2 = CarControl(tcp, sec_lvl, password)
-    c2.set_headlights(1234)
-
-    status = fetch_status(peer)
-    # it may take some time for the board to ACK the change
-    while status.headlights != 1234:
-        status = fetch_status()
-    print(status)
