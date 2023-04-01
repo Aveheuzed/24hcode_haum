@@ -5,6 +5,8 @@ from tkinter import ttk
 from PIL import ImageTk, Image
 import cv2
 
+from car import UDPComm
+
 class App:
     def __init__(self, root):
         
@@ -27,7 +29,7 @@ class App:
         self.initHeadlightUI(root)
         self.initRearlightUI(root)
 
-        self.initZQSDUI(root)
+        #self.initZQSDUI(root)
 
         self.initAccelerometerUI(root)        
         self.initGyroscopeUI(root)        
@@ -38,6 +40,8 @@ class App:
 
         self.bindings(root)
 
+        self.updateValues()
+
     def initValues(self):
         self.speed = 0
         self.steer = 0
@@ -45,7 +49,19 @@ class App:
         self.rearlight = "#1c7bd9"
         self.blinker = False
         self.tmpBlinker = tk.IntVar()
+
+        self.rssi = 0
+        self.batterySOC = 0
+        self.batteryADC = 0
+
+        self.accelerometerX = 0
+        self.accelerometerY = 0
+        self.accelerometerZ = 0
         
+        self.gyroscopeX = 0
+        self.gyroscopeY = 0
+        self.gyroscopeZ = 0
+
         self.SPEED_MAX = 8192
         self.SPEED_MIN = -8192
         self.STEER_MAX = 32768
@@ -62,6 +78,13 @@ class App:
         root.bind('d', lambda event: self.steerRight())
         root.bind('p', lambda event: self.headlightUp())
         root.bind('m', lambda event: self.headlightDown())
+
+
+    ##################################################
+    ##################################################
+    ### ZQSD DISPLAY
+    ##################################################
+    ##################################################
 
     def initZQSDUI(self, root):
         ButtonLeft=tk.Button(root)
@@ -104,6 +127,17 @@ class App:
         ButtonBackward.place(x=120,y=350,width=70,height=25)
         ButtonBackward["command"] = self.ButtonBackward_command
 
+    def ButtonLeft_command(self):
+        print("command")
+
+    def ButtonForward_command(self):
+        print("command")
+
+    def ButtonRight_command(self):
+        print("command")
+
+    def ButtonBackward_command(self):
+        print("command")
 
     ##################################################
     ##################################################
@@ -129,7 +163,6 @@ class App:
         self.LabelSpeed["justify"] = "center"
         self.LabelSpeed["text"] = "Speed: " + str(self.speed)
         self.LabelSpeed.place(x=50,y=30,width=100,height=25)
-
 
     def updateSpeedInfo(self):
         self.LabelSpeed["text"] = "Speed: " + str(int(self.speed))
@@ -181,24 +214,22 @@ class App:
         self.LabelSteer["text"] = "Steer: " + str(self.steer)
         self.LabelSteer.place(x=50,y=60,width=100,height=25)
 
-    def updateSteerInfo(self):
+    def updateSteerUI(self):
         self.LabelSteer["text"] = "Steer: " + str(int(self.steer))
         self.ScaleSteering.set(self.steer * 180 / self.STEER_MAX)
 
     def steerRight(self):
         self.steer = min(self.STEER_MAX, self.steer + 3276.8)
-        self.updateSteerInfo()
+        self.updateSteerUI()
 
     def steerLeft(self):
         self.steer = max(self.STEER_MIN, self.steer - 3276.8)
-        self.updateSteerInfo()
+        self.updateSteerUI()
 
     # UI Scale
     def ScaleSteering_command(self, value: int):
         self.steer=int(value) * self.STEER_MAX / 180
-        self.updateSteerInfo()
-
-
+        self.updateSteerUI()
 
     ##################################################
     ##################################################
@@ -225,22 +256,22 @@ class App:
         self.LabelHeadlight["text"] = "Headlight: " + str(self.steer)
         self.LabelHeadlight.place(x=50,y=90,width=100,height=25)
 
-    def updateHeadlightInfo(self):
+    def updateHeadlightUI(self):
         self.LabelHeadlight["text"] = "Headlight: " + str(int(self.headlight))
         self.ScaleHeadlight.set(self.headlight * 100 / self.HEADLIGHT_MAX)
 
     def headlightUp(self):
         self.headlight = min(self.HEADLIGHT_MAX, self.headlight + 6553.5)
-        self.updateHeadlightInfo()
+        self.updateHeadlightUI()
 
     def headlightDown(self):
         self.headlight = max(self.HEADLIGHT_MIN, self.headlight - 6553.5)
-        self.updateHeadlightInfo()
+        self.updateHeadlightUI()
 
     # UI Scale
     def ScaleHeadlight_command(self, value):
         self.headlight=int(value) * self.HEADLIGHT_MAX / 100
-        self.updateHeadlightInfo()
+        self.updateHeadlightUI()
 
     ##################################################
     ##################################################
@@ -267,14 +298,14 @@ class App:
         ButtonColorChooser.place(x=175,y=120,width=100,height=25)
         ButtonColorChooser["command"] = self.ButtonColorChooser_command
 
-    def updateRearlightInfo(self):
+    def updateRearlightUI(self):
         self.LabelColorRear.configure(bg=self.rearlight)
         self.LabelColorRear["text"] = self.rearlight
 
 
     def ButtonColorChooser_command(self):
         self.rearlight = askcolor(title="Tkinter Color Chooser")[1]
-        self.updateRearlightInfo()
+        self.updateRearlightUI()
 
     ##################################################
     ##################################################
@@ -311,10 +342,10 @@ class App:
         self.LabelAccelerometerZ["text"] = "Z: "
         self.LabelAccelerometerZ.place(x=720,y=85,width=100,height=25)
     
-    def updateAccelerometerInfo(self, x, y, z):
-        self.LabelAccelerometerX["text"] = x
-        self.LabelAccelerometerY["text"] = y
-        self.LabelAccelerometerZ["text"] = z
+    def updateAccelerometerUI(self):
+        self.LabelAccelerometerX["text"] = self.accelerometerX
+        self.LabelAccelerometerY["text"] = self.accelerometerY
+        self.LabelAccelerometerZ["text"] = self.accelerometerZ
 
     ##################################################
     ##################################################
@@ -351,10 +382,10 @@ class App:
         self.LabelGyroscopeZ["text"] = "Z: "
         self.LabelGyroscopeZ.place(x=720,y=185,width=100,height=25)
 
-    def updateGyroscopeInfo(self, x, y, z):
-        self.LabelGyroscopeX["text"] = x
-        self.LabelGyroscopeY["text"] = y
-        self.LabelGyroscopeZ["text"] = z
+    def updateGyroscopeUI(self):
+        self.LabelGyroscopeX["text"] = self.gyroscopeX
+        self.LabelGyroscopeY["text"] = self.gyroscopeY
+        self.LabelGyroscopeZ["text"] = self.gyroscopeZ
 
     ##################################################
     ##################################################
@@ -377,15 +408,15 @@ class App:
         self.LabelRSSIValue["text"] = "0"
         self.LabelRSSIValue.place(x=800,y=210,width=100,height=25)
 
-    def updateRSSIInfo(self, value):
-        self.LabelRSSIValue["text"] = value
-
+    def updateRSSIUI(self):
+        self.LabelRSSIValue["text"] = self.rssi
 
     ##################################################
     ##################################################
     ### Battery 
     ##################################################
     ##################################################
+    
     def initBatteryUI(self, root):
         LabelBatteryADC=tk.Label(root)
         ft = tkFont.Font(family='Times',size=10)
@@ -409,6 +440,9 @@ class App:
         ProgressBatterySOC["orient"] = tk.HORIZONTAL
         ProgressBatterySOC.place(x=150, y=175, width=100)
 
+    def updateBatteryUI(self):
+        self.ProgressBatteryADC["value"] = self.batteryADC
+        self.ProgressBatterySOC["value"] = self.batterySOC
 
     ##################################################
     ##################################################
@@ -456,23 +490,32 @@ class App:
     ### Other 
     ##################################################
     ##################################################
+    def upadteUI(self):
+        self.updateSteerUI()
+        self.updateSpeedInfo()
+        self.updateHeadlightUI()
+        self.updateRearlightUI()
 
-    def ButtonLeft_command(self):
-        print("command")
+        self.updateAccelerometerUI()
+        self.updateGyroscopeUI()
 
-    def ButtonForward_command(self):
-        print("command")
+        self.updateBlinkerInfo()
+        self.updateBatteryUI()
+        self.updateRSSIUI()
 
-    def ButtonRight_command(self):
-        print("command")
+    def updateValues(self):
+        ## Retrieve new values
 
+        self.speed = 0
+        self.steer = 0
+        self.headlight = 0
+        self.rearlight = "#1c7bd9"
+        self.blinker = False
+        self.tmpBlinker = tk.IntVar()
 
-    def ButtonBackward_command(self):
-        print("command")
+        self.upadteUI()
 
-    def CheckBoxHeadLight_command(self):
-        print("command")
-
+        self.after(1000, self.updateValues)
     
 
 # function for video streaming
@@ -486,16 +529,27 @@ def video_stream():
     lmain.configure(image=imgtk)
     lmain.after(1, video_stream) 
 
+
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
 
-    # Capture from camera
-    cap = cv2.VideoCapture(0)
+    ##############################
+    # car.py    
+    ##############################
+    udp = UDPComm()
 
+
+    ##############################
+    # Start Video
+    ##############################
+    cap = cv2.VideoCapture(0)
     lmain = tk.Label(root)
     lmain.place(x=10,y=500,width=1000,height=500)
-
     video_stream()
+
+
+
     
     root.mainloop()
