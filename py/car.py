@@ -1,5 +1,7 @@
 import socket
 import struct
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+from zeroconf import ZeroconfServiceTypes
 import threading
 import time
 from dataclasses import dataclass
@@ -13,7 +15,9 @@ MCAST_GRP = '239.255.0.1'
 MCAST_PORT = 4211
 
 
-def create_udp_conn():
+def create_udp_conn(name):
+    ip = socket.gethostbyname(name)
+    print(ip)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect((REMOTE_HOST, REMOTE_PORT))
     return s
@@ -46,7 +50,7 @@ class CarControl :
         )
 
     def open_tcp_link(self, port):
-        self._generic_send(b"\x01"+port.to_bytes(2))
+        self._generic_send(b"\x01"+port.to_bytes(2, "big"))
 
     def engine_on(self):
         self._generic_send(b"\x10\x01")
@@ -185,9 +189,127 @@ def fill_status(packet, status):
         else:
             raise ValueError("Invalid packet")
 
-if __name__ == '__main__':
-    udp = create_udp_conn()
-    tcp = create_tcp_conn(udp, b"\x00"*6)
 
-    status  = fetch_status()
-    print(status)
+def get_records(domain):
+    """
+    Get all the records associated to domain parameter.
+    :param domain:
+    :return:
+    """
+    ids = [
+        'NONE',
+        'A',
+        'NS',
+        'MD',
+        'MF',
+        'CNAME',
+        'SOA',
+        'MB',
+        'MG',
+        'MR',
+        'NULL',
+        'WKS',
+        'PTR',
+        'HINFO',
+        'MINFO',
+        'MX',
+        'TXT',
+        'RP',
+        'AFSDB',
+        'X25',
+        'ISDN',
+        'RT',
+        'NSAP',
+        'NSAP-PTR',
+        'SIG',
+        'KEY',
+        'PX',
+        'GPOS',
+        'AAAA',
+        'LOC',
+        'NXT',
+        'SRV',
+        'NAPTR',
+        'KX',
+        'CERT',
+        'A6',
+        'DNAME',
+        'OPT',
+        'APL',
+        'DS',
+        'SSHFP',
+        'IPSECKEY',
+        'RRSIG',
+        'NSEC',
+        'DNSKEY',
+        'DHCID',
+        'NSEC3',
+        'NSEC3PARAM',
+        'TLSA',
+        'HIP',
+        'CDS',
+        'CDNSKEY',
+        'CSYNC',
+        'SPF',
+        'UNSPEC',
+        'EUI48',
+        'EUI64',
+        'TKEY',
+        'TSIG',
+        'IXFR',
+        'AXFR',
+        'MAILB',
+        'MAILA',
+        'ANY',
+        'URI',
+        'CAA',
+        'TA',
+        'DLV',
+    ]
+
+    for a in ids:
+        try:
+            answers = dns.resolver.resolve(domain, a)
+            for rdata in answers:
+                print(a, ':', rdata.to_text())
+
+        except Exception as e:
+            print(e)  # or pass
+
+tab = []
+class MyListener(ServiceListener):
+
+    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        print(f"Service {name} updated")
+
+    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        print(f"Service {name} removed")
+
+    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        info = zc.get_service_info(type_, name)
+        tab.append((name.split('.')[0], info.addresses))
+
+if __name__ == '__main__':
+    my_card = "CarNode-Simu2"
+    ip = 0
+    found = False
+    zeroconf = Zeroconf()
+    listener = MyListener()
+    browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
+
+    while not found:
+        for e in tab:
+            if e[0] == my_card:
+                found = True
+                ip = e[1]
+                break
+        print(f"waiting for {my_card}\r")
+
+    print(ip)
+
+    #print('\n'.join(ZeroconfServiceTypes.find()))
+    #udp = create_udp_conn("")
+    #tcp = create_tcp_conn(udp, b"\x00"*6)
+
+    #status  = fetch_status()
+    #print(status)
