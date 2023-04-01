@@ -35,10 +35,11 @@ class MySocket:
             bytes_recd = bytes_recd + len(chunk)
         return b''.join(chunks)
 
-def send_command():
+def send_command(level, pwd, cmd, arg):
     UDP_IP = "192.168.24.1"
     UDP_PORT = 4210
-    MESSAGE = bytes("CIS1000000" + chr(0x01) + str(65432), encoding='utf-8')
+    CMD = chr(0x10) + str(0)
+    MESSAGE = bytes("CIS" + level + pwd + cmd + arg, encoding='utf-8')
 
     print("UDP target IP:", UDP_IP)
     print("UDP target port:", UDP_PORT)
@@ -47,6 +48,8 @@ def send_command():
     sock = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP
     sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+    recv = sock.recv(2048)
+    print("recv ".join(recv))
     print("sended")
 
 def tcp_server(name):
@@ -57,7 +60,8 @@ def tcp_server(name):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
-        send_command()
+        send_command("1", "000000", chr(0x10), str(1)) #engine on
+        send_command("1", "000000", chr(0x10), str(0)) #engine off
         conn, addr = s.accept()
         with conn:
             print(f"Connected by {addr}")
@@ -69,7 +73,5 @@ if __name__ == '__main__':
 
     tcp_server("toto")
 
-    recv = sock.recv(2048)
-    print("recv ".join(recv))
 
 
