@@ -56,19 +56,19 @@ class CarControl :
         self._generic_send(b"\x10\x00")
 
     def pilot(self, throttle, steering):
-        self._generic_send(b"\x11"+throttle.to_bytes(2, signed=True)+steering.to_bytes(2, signed=True))
+        self._generic_send(b"\x11"+throttle.to_bytes(2, "big", signed=True)+steering.to_bytes(2, signed=True))
 
     def set_headlights(self, level):
-        self._generic_send(b"\x12"+level.to_bytes(2))
+        self._generic_send(b"\x12"+level.to_bytes(2, "big"))
 
     def invert_steering(self, activate=True):
-        self._generic_send(b"\x31"+activate.to_bytes(1))
+        self._generic_send(b"\x31"+activate.to_bytes(1, "big"))
 
     def invert_throttle(self, activate=True):
-        self._generic_send(b"\x32"+activate.to_bytes(1))
+        self._generic_send(b"\x32"+activate.to_bytes(1, "big"))
 
     def set_color(self, r, g, b):
-        self._generic_send(b"\x33"+r.to_bytes(1)+g.to_bytes(1)+b.to_bytes(1))
+        self._generic_send(b"\x33"+r.to_bytes(1)+g.to_bytes(1)+b.to_bytes(1, "big"))
 
 @dataclass
 class CarStatus:
