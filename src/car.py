@@ -1,6 +1,7 @@
 import socket
 import struct
 import threading
+import time
 
 LOCAL_PORT = 65432
 REMOTE_HOST = "192.168.24.123"
@@ -163,11 +164,11 @@ def stop_engine(udp):
 
 def change_headlights(udp, level):
     udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=HEADLIGHT_CTRL,
-                     arg=int.to_bytes(level, 2, "little", signed=False))
+                     arg=int.to_bytes(level, 2, "big", signed=False))
 
 def control_pilote(udp, throttle, steering):
     udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=PILOTE_CTRL,
-                     arg=(throttle << 16 | steering).to_bytes(length=4, byteorder="little", signed=False))
+                     arg=(throttle << 16 | steering).to_bytes(length=4, byteorder="big", signed=False))
 
 
 if __name__ == '__main__':
@@ -178,6 +179,7 @@ if __name__ == '__main__':
     #udp.send_command(lvl=1, passwd=b"\x00\x01\x02\x03\x04\x05", command=b"\x12\x00\x07")
     udp.send_command(lvl=1, passwd=b"\x00"*6, command=b"\x21\x00\x01\x02\x03\x04\x05")
     start_engine(udp)
+    time.sleep(1)
     change_headlights(udp, 700)
     control_pilote(udp, 200, 200)
 
