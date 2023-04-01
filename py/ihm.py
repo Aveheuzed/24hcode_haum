@@ -13,6 +13,7 @@ class App:
     def __init__(self, root):
         
         self.initValues()
+        self.ip = None
         self.udp = None
         self.tcp =None
         #setting title
@@ -80,6 +81,8 @@ class App:
         self.STEER_MIN = -32768
         self.HEADLIGHT_MIN = 0
         self.HEADLIGHT_MAX = 65535
+
+        print('Finished initValues')
 
     def bindings(self,root):
         root.bind('a', lambda event: self.setForward())
@@ -515,9 +518,12 @@ class App:
 
         for e in tab:
             if e[0] == self.selectedCar.get():
+                self.ip = e[1]
                 self.udp = create_udp_conn(e[1])
                 self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
                 self.carControl = CarControl(self.tcp, 2, b"\x00"*6)
+
+                print("set ip: " + self.ip)
 
 
     ##################################################
@@ -616,8 +622,9 @@ class App:
 
     def updateValues(self):
         ## Retrieve new values
-        if(self.tcp):
-            status  = fetch_status(self.selectedCar[1])
+
+        if(self.ip != None):
+            status  = fetch_status(self.ip)
             if(status.started):        
                 self.carControl.pilot(status.throttle, status.steering)
 
@@ -654,19 +661,7 @@ class App:
 
             self.upadteUI()
 
-            self.root.after(100, self.updateValues)
-        
-
-# function for video streaming
-def video_stream():
-
-    _, frame = cap.read()
-    cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-    img = Image.fromarray(cv2image)
-    imgtk = ImageTk.PhotoImage(image=img)
-    lmain.imgtk = imgtk
-    lmain.configure(image=imgtk)
-    lmain.after(1, video_stream) 
+        self.root.after(100, self.updateValues)
 
 tabName = []
 tab = []

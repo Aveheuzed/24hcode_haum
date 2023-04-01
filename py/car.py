@@ -56,7 +56,7 @@ class CarControl :
         self._generic_send(b"\x10\x00")
 
     def pilot(self, throttle, steering):
-        self._generic_send(b"\x11"+throttle.to_bytes(2, "big", signed=True)+steering.to_bytes(2, signed=True))
+        self._generic_send(b"\x11"+throttle.to_bytes(2, "big", signed=True)+steering.to_bytes(2, "big",signed=True))
 
     def set_headlights(self, level):
         self._generic_send(b"\x12"+level.to_bytes(2, "big"))
