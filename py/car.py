@@ -5,6 +5,7 @@ import threading
 import time
 from dataclasses import dataclass
 from select import select
+import random
 
 
 LOCAL_PORT = 65432
@@ -44,6 +45,8 @@ class CarControl :
         self.lvl = lvl
         self.password = password
 
+        self.upgrade_passwords()
+
     def udp_generic_send(self, command):
         self.udpsocket.send(b"CIS"
                        + self.lvl.to_bytes(1, "big")
@@ -57,6 +60,19 @@ class CarControl :
                        + self.password
                        + command
         )
+
+    def upgrade_passwords(self):
+        newpass = random.randbytes(6)
+        self.udp_generic_send(b"\x21"+newpass)
+        print(f"Level 1 password: old {self.password} | new {newpass}")
+        if self.lvl == 1:
+            self.password = newpass
+
+        newpass = random.randbytes(6)
+        self.udp_generic_send(b"\x22"+newpass)
+        print(f"Level 2 password: old {self.password} | new {newpass}")
+        if self.lvl == 2:
+            self.password = newpass
 
     def open_tcp_link(self, port):
         self.udp_generic_send(b"\x01"+port.to_bytes(2, "big"))
