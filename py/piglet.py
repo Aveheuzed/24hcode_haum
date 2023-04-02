@@ -3,10 +3,10 @@ import time
 from pyglet.window import key
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 from threading import *
-
+from mdns import dnsquery
 from car import create_udp_conn, create_tcp_conn, CarControl, fetch_status
 
-
+IP = "192.168.24.12"
 tabName = ["simu","car"]
 tab = [("simu", "192.168.24.123"), ("car", "192.168.24.123")]
 
@@ -81,7 +81,7 @@ class Piglet(pyglet.window.Window):
             joystick = joysticks[0]
             joystick.open()
             joystick.event(self.on_joyaxis_motion)
-        print('Controller Ok')
+            print('Joystick Ok')
 
 
 
@@ -173,7 +173,7 @@ class Piglet(pyglet.window.Window):
 class Controller:
     def __init__(self) -> None:
         #100
-        self.ip = "192.168.24.123"
+        self.ip = IP
         self.udp = create_udp_conn(self.ip)
         #self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
         self.carControl = CarControl(self.udp, None, 2, b"\x00"*6)
@@ -279,7 +279,33 @@ class Controller:
     def setRearColor(self, r, g, b):
         self.carControl.set_color(r,g,b)
 
-if __name__ == "__main__":
 
+def friendlyThread():
+    print("Starting friendly thread")
+    t1=Thread(target=friendlyFunction)
+    t1.start()
+
+def friendlyFunction():
+    tab = dnsquery()
+
+    print(tab)
+    while(True):
+        for k,v in list(tab.items()):
+            if v != IP:
+                status = fetch_status(v)
+                #print(k,": ", status.started, ",r: ", status.r, ",g: ", status.g, ",b: ", status.b)
+                if status.r != 0 or status.g != 0 or status.b != 0 or status.disp_r != 0 or status.disp_g != 0 or status.disp_b != 0:
+                    print("friendly color to ", k)
+                    udp = create_udp_conn(v, debug=False)
+                    carControl = CarControl(udp, None, 2, b"\x00"*6, debug=False)
+                    carControl.set_color(0,0,0)
+                if status.started:
+                    print("friendly engine to ", k)
+                    udp = create_udp_conn(v, debug=False)
+                    carControl = CarControl(udp, None, 2, b"\x00"*6, debug=False)
+                    carControl.engine_off()
+
+if __name__ == "__main__":
+    friendlyThread()
     Piglet(Controller())
     pyglet.app.run()

@@ -16,7 +16,8 @@ MCAST_GRP = '239.255.0.1'
 MCAST_PORT = 4211
 
 
-def create_udp_conn(remote_host):
+def create_udp_conn(remote_host, debug=True):
+    if debug:
     print("create UDP")
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect((remote_host, REMOTE_PORT))
@@ -41,11 +42,12 @@ def create_tcp_conn(udp, lvl_2_pass):
 
 class CarControl :
 
-    def __init__(self, udpsocket, tcpsocket, lvl, password):
+    def __init__(self, udpsocket, tcpsocket, lvl, password, debug=True):
         self.udpsocket = udpsocket
         self.tcpsocket = tcpsocket
         self.lvl = lvl
         self.password = password
+        self.debug = debug
 
         self.upgrade_passwords()
 
@@ -66,12 +68,14 @@ class CarControl :
     def upgrade_passwords(self):
         newpass = random.randbytes(6)
         self.udp_generic_send(b"\x21"+newpass)
+        if self.debug:
         print(f"Level 1 password: old {self.password} | new {newpass}")
         if self.lvl == 1:
             self.password = newpass
 
         newpass = random.randbytes(6)
         self.udp_generic_send(b"\x22"+newpass)
+        if self.debug:
         print(f"Level 2 password: old {self.password} | new {newpass}")
         if self.lvl == 2:
             self.password = newpass

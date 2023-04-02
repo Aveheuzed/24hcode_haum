@@ -18,7 +18,7 @@ class MyListener(ServiceListener):
 
 
 def dnsquery():
-    return {"CarNode-Simu2":"192.168.24.123"}
+    ##return {"CarNode-Simu2":"192.168.24.123"}
     zeroconf = Zeroconf()
     listener = MyListener()
     browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
@@ -26,4 +26,5 @@ def dnsquery():
     while not len(_tab):
         sleep(0.1)
 
+    sleep(10)
     return _tab
