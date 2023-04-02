@@ -62,25 +62,25 @@ class CarControl :
         self.udp_generic_send(b"\x01"+port.to_bytes(2, "big"))
 
     def engine_on(self):
-        self.tcp_generic_send(b"\x10\x01")
+        self.udp_generic_send(b"\x10\x01")
 
     def engine_off(self):
-        self.tcp_generic_send(b"\x10\x00")
+        self.udp_generic_send(b"\x10\x00")
 
     def pilot(self, throttle, steering):
         self.udp_generic_send(b"\x11"+throttle.to_bytes(2, "big", signed=True)+steering.to_bytes(2, "big",signed=True))
 
     def set_headlights(self, level):
-        self.tcp_generic_send(b"\x12"+level.to_bytes(2, "big"))
+        self.udp_generic_send(b"\x12"+level.to_bytes(2, "big"))
 
     def invert_steering(self, activate=True):
-        self.tcp_generic_send(b"\x31"+activate.to_bytes(1, "big"))
+        self.udp_generic_send(b"\x31"+activate.to_bytes(1, "big"))
 
     def invert_throttle(self, activate=True):
-        self.tcp_generic_send(b"\x32"+activate.to_bytes(1, "big"))
+        self.udp_generic_send(b"\x32"+activate.to_bytes(1, "big"))
 
     def set_color(self, r, g, b):
-        self.tcp_generic_send(b"\x33"+r.to_bytes(1)+g.to_bytes(1)+b.to_bytes(1, "big"))
+        self.udp_generic_send(b"\x33"+r.to_bytes(1)+g.to_bytes(1)+b.to_bytes(1, "big"))
 
 @dataclass
 class CarStatus:
