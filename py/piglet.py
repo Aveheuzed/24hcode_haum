@@ -48,6 +48,23 @@ class Piglet(pyglet.window.Window):
         self.LabelStatusSteer = createLabel("0", 100, 70)
 
 
+        # get a list of all low-level input devices:
+        devices = pyglet.input.get_devices()
+
+        # get a list of all controllers:
+        controllers = pyglet.input.get_controllers()
+
+        print(controllers)
+
+        a = pyglet.input.get_joysticks()
+
+        if a:
+            joystick = a[0]
+            joystick.open()
+
+            joystick.event(self.on_joyaxis_motion)
+
+
     def updateSteerUI(self, steer):
         self.LabelStatusSteer.text = str(int(steer))
 
@@ -56,6 +73,27 @@ class Piglet(pyglet.window.Window):
 
     def updateEngineUI(self, engine):
         self.LabelStatusEngine.text = str(int(engine))
+
+
+    def on_joyaxis_motion(self, joystick, axis, value):
+        #print(axis)
+        if axis == 'x':
+            self.controller.steer = int((self.controller.STEER_MAX - 1) * value)
+        #else:
+            #self.controller.steer = 0
+        
+        if axis == 'z' and value == -1:
+            self.controller.throttle = 0
+        elif axis == 'z' and value >= 0:
+            self.controller.throttle = -int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
+        elif axis == 'rz' and value == -1:
+            self.controller.throttle = 0
+        elif axis == 'rz' and value >= 0:
+            print('go')
+            self.controller.throttle = int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
+        elif axis not in ('x', 'z', 'rz')  :
+            self.controller.throttle = 0
+
 
     def on_draw(self):
         if(self.controller.ip != None):
@@ -113,6 +151,11 @@ class Controller:
         self.QisPressed = False
         self.DisPressed = False
 
+        self.THROTTLE_MAX = 8192
+        self.THROTTLE_MIN = -8192
+        self.STEER_MAX = 32768
+        self.STEER_MIN = -32768
+
         self.threadCommand()
 
     def threadCommand(self):
@@ -122,34 +165,41 @@ class Controller:
     def updateValues(self):
         while(True):
 
-            if(self.ZisPressed and not self.SisPressed):
-                self.throttle = 819
-            elif(not self.ZisPressed and self.SisPressed):
-                self.throttle = -819
-            elif(not self.ZisPressed and not self.SisPressed):
-                self.throttle = 0
+            #if(self.ZisPressed and not self.SisPressed):
+            #    self.throttleIncrease()
+            #elif(not self.ZisPressed and self.SisPressed):
+            #    self.throttleDecrease()
+            #elif(not self.ZisPressed and not self.SisPressed):
+                #self.throttle = 0
             
-            if(self.QisPressed and not self.DisPressed):
-                self.steer = -3276 * 3
-            elif(not self.QisPressed and self.DisPressed):
-                self.steer = 3276 * 3
-            elif(not self.QisPressed and not self.DisPressed):
-                self.steer = 0
+            #if(self.QisPressed and not self.DisPressed):
+                #self.steerLeft()
+            #    self.steer = -16384
+            #elif(not self.QisPressed and self.DisPressed):
+                #self.steerRight()
+            #    self.steer = 16384
+            #elif(not self.QisPressed and not self.DisPressed):
+                #self.steer = 0
 
             ## Retrieve new values
             if(self.ip != None):
                 if(self.engine):
+                    print("throttle: ", self.throttle, " steer: ", self.steer)
                     self.carControl.pilot(self.throttle, self.steer)
 
             time.sleep(0.05)
 
     def throttleIncrease(self):
-        print('increase throttle')
-        self.throttle = int(min(self.SPEED_MAX, self.throttle + 819.2))
+        self.throttle = min(self.THROTTLE_MAX, (self.throttle + 10))
 
     def throttleDecrease(self):
-        print('decrease throttle')
-        self.throttle = int(max(self.SPEED_MIN, self.throttle - 819.2))
+        self.throttle = max(self.THROTTLE_MIN, self.throttle - 10)
+
+    def steerLeft(self):
+        self.steer = max(self.STEER_MIN, self.steer - 500)
+
+    def steerRight(self):
+        self.steer = min(self.STEER_MAX, (self.steer + 500))
 
     def startEngine(self):
         if(self.ip != None):
