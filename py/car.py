@@ -98,7 +98,7 @@ class CarControl :
         self.udp_generic_send(b"\x32"+activate.to_bytes(1, "big"))
 
     def set_color(self, r, g, b):
-        self.udp_generic_send(b"\x33"+r.to_bytes(1)+g.to_bytes(1)+b.to_bytes(1, "big"))
+        self.udp_generic_send(b"\x33"+r.to_bytes(1, "big")+g.to_bytes(1, "big")+b.to_bytes(1, "big"))
 
 @dataclass
 class CarStatus:

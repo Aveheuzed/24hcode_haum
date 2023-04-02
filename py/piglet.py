@@ -40,6 +40,9 @@ class Piglet(pyglet.window.Window):
         super().__init__(width=512, height=512,visible=True)
         self.LabelEngine = createLabel("Engine: ", 10, 10)
         self.LabelStatusEngine = createLabel("0", 100, 10)
+        
+        self.LabelBoost = createLabel("Boost: ", 150, 10)
+        self.LabelStatusBoost = createLabel("True", 200, 10)
 
         self.LabelThrottle = createLabel("Throttle: ", 10, 40)
         self.LabelStatusThrottle = createLabel("0", 100, 40)
@@ -47,22 +50,36 @@ class Piglet(pyglet.window.Window):
         self.LabelSteer = createLabel("Steer: ", 10, 70)
         self.LabelStatusSteer = createLabel("0", 100, 70)
 
+        self.LabelRssi = createLabel("Rssi: ", 10, 100)
+        self.LabelStatusRssi = createLabel("0", 100, 100)
+
+        self.LabelIrvalue = createLabel("IR: ", 10, 130)
+        self.LabelStatusIrvalue = createLabel("0", 100, 130)
+        
+        self.LabelHeadlight = createLabel("Headlight: ", 10, 160)
+        self.LabelStatusHeadlight = createLabel("40000", 100, 160)
 
         # get a list of all low-level input devices:
         devices = pyglet.input.get_devices()
 
         # get a list of all controllers:
         controllers = pyglet.input.get_controllers()
+        if controllers:
+            controller = controllers[0]
+            controller.open()
+            controller.event(self.on_button_press)
+            controller.event(self.on_button_release)
+            print('Controller Ok')
 
-        print(controllers)
+        
+        joysticks = pyglet.input.get_joysticks()
 
-        a = pyglet.input.get_joysticks()
-
-        if a:
-            joystick = a[0]
+        if joysticks:
+            joystick = joysticks[0]
             joystick.open()
-
             joystick.event(self.on_joyaxis_motion)
+        print('Controller Ok')
+
 
 
     def updateSteerUI(self, steer):
@@ -74,25 +91,51 @@ class Piglet(pyglet.window.Window):
     def updateEngineUI(self, engine):
         self.LabelStatusEngine.text = str(int(engine))
 
+    def updateBoostUI(self, boost):
+        self.LabelStatusBoost.text = str(boost)
+        
+    def updateRssiUI(self, rssi):
+        self.LabelStatusRssi.text = str(int(rssi))
+
+    def updateIrvaluUI(self, irValue):
+        self.LabelStatusIrvalue.text = chr(irValue)
+    
+    def updateHeadlightUI(self, headlight):
+        self.LabelStatusHeadlight.text = str(headlight)
+
+    def on_button_press(self, controller, button_name):     
+        if button_name == 'a':
+            self.controller.startEngine()
+        elif button_name == 'leftstick':
+            self.controller.boostMode(True)
+        elif button_name == 'leftshoulder':
+            self.controller.headlightChange(False)
+        elif button_name == 'rightshoulder':
+            self.controller.headlightChange(True)
+
+    def on_button_release(self, controller, button_name):
+        if button_name == 'leftstick':
+            self.controller.boostMode(False)
 
     def on_joyaxis_motion(self, joystick, axis, value):
-        #print(axis)
-        if axis == 'x':
-            self.controller.steer = int((self.controller.STEER_MAX - 1) * value)
+        if axis == 'y':
+            self.controller.throttle = -int((self.controller.THROTTLE_MAX / 2 ) * round(value,2))
+        elif axis == 'rx':
+            self.controller.steer = int((self.controller.STEER_MAX / 2 - 1) * round(value,2))
         #else:
             #self.controller.steer = 0
         
-        if axis == 'z' and value == -1:
-            self.controller.throttle = 0
-        elif axis == 'z' and value >= 0:
-            self.controller.throttle = -int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
-        elif axis == 'rz' and value == -1:
-            self.controller.throttle = 0
-        elif axis == 'rz' and value >= 0:
-            print('go')
-            self.controller.throttle = int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
-        elif axis not in ('x', 'z', 'rz')  :
-            self.controller.throttle = 0
+        #if axis == 'z' and value == -1:
+        #    self.controller.throttle = 0
+        #elif axis == 'z' and value >= 0:
+        #    self.controller.throttle = -int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
+        #elif axis == 'rz' and value == -1:
+        #    self.controller.throttle = 0
+        #elif axis == 'rz' and value >= 0:
+        #    print('go')
+        #    self.controller.throttle = int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
+        #elif axis not in ('x', 'z', 'rz', )  :
+        #    self.controller.throttle = 0
 
 
     def on_draw(self):
@@ -102,14 +145,26 @@ class Piglet(pyglet.window.Window):
             self.updateSteerUI(status.steering)
             self.updateThrottleUI(status.throttle)
             self.updateEngineUI(status.started)
+            self.updateRssiUI(status.rssi)
+            self.updateIrvaluUI(status.ir)
+            self.updateBoostUI(self.controller.boost)
+            self.updateHeadlightUI(status.headlights)
 
         self.clear()
         self.LabelEngine.draw()
         self.LabelStatusEngine.draw()
+        self.LabelBoost.draw()
+        self.LabelStatusBoost.draw()
         self.LabelThrottle.draw()
         self.LabelStatusThrottle.draw()
         self.LabelSteer.draw()
         self.LabelStatusSteer.draw()
+        self.LabelIrvalue.draw()
+        self.LabelStatusIrvalue.draw()
+        self.LabelHeadlight.draw()
+        self.LabelStatusHeadlight.draw()
+        self.LabelRssi.draw()
+        self.LabelStatusRssi.draw()
 
     
     def on_key_press(self, symbol, modifiers):
@@ -138,18 +193,26 @@ class Piglet(pyglet.window.Window):
 
 class Controller:
     def __init__(self) -> None:
-        self.ip = "192.168.24.123"
+        #100
+        self.ip = "192.168.24.100"
         self.udp = create_udp_conn(self.ip)
         #self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
         self.carControl = CarControl(self.udp, None, 2, b"\x00"*6)
+        self.setRearColor(0,255,0)
 
+        self.boost = False
         self.throttle = 0
         self.steer = 0
         self.engine = False
+
+        self.headlight = 40000
         self.ZisPressed = False
         self.SisPressed = False
         self.QisPressed = False
         self.DisPressed = False
+
+        self.LIGHT_MIN = 0
+        self.LIGHT_MAX = 65535
 
         self.THROTTLE_MAX = 8192
         self.THROTTLE_MIN = -8192
@@ -184,10 +247,29 @@ class Controller:
             ## Retrieve new values
             if(self.ip != None):
                 if(self.engine):
-                    print("throttle: ", self.throttle, " steer: ", self.steer)
-                    self.carControl.pilot(self.throttle, self.steer)
+                    #print("throttle: ", self.throttle, " steer: ", self.steer, " divider: ", str(self.throttleDiviser))
+                    calVal = self.throttle
+                    if self.boost:
+                        calVal = 16000
+                        
+                    self.carControl.pilot(calVal , self.steer)
 
             time.sleep(0.05)
+
+    def headlightChange(self, bool):
+        if bool:
+            self.headlight = min(self.LIGHT_MAX,self.headlight + 10000) 
+        else:
+            self.headlight = max(self.LIGHT_MIN,self.headlight - 10000)
+        self.carControl.set_headlights(self.headlight)
+
+    def boostMode(self, bool):
+        self.boost = bool
+
+        if(self.boost):
+            self.carControl.set_color(255,0,0)
+        else:
+            self.carControl.set_color(0,255,0)
 
     def throttleIncrease(self):
         self.throttle = min(self.THROTTLE_MAX, (self.throttle + 10))
@@ -212,6 +294,9 @@ class Controller:
             print("stopEngine")
             self.engine = False
             self.carControl.engine_off()
+
+    def setRearColor(self, r, g, b):
+        self.carControl.set_color(r,g,b)
 
 if __name__ == "__main__":
 
