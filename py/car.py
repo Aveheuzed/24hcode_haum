@@ -17,11 +17,13 @@ MCAST_PORT = 4211
 
 
 def create_udp_conn(remote_host):
+    print("create UDP")
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect((remote_host, REMOTE_PORT))
     return s
 
 def create_tcp_conn(udp, lvl_2_pass):
+    print("create TCP")
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp.bind(("", LOCAL_PORT))
     tcp.listen(16)
@@ -30,7 +32,7 @@ def create_tcp_conn(udp, lvl_2_pass):
 
     while True:
         udpcontrol.open_tcp_link(LOCAL_PORT)
-        ack = select([tcp], [], [], timeout=1.0)[0]
+        ack = select([tcp], [], [], 1.0)[0]
         if not ack:
             continue
         client, client_addr = tcp.accept()
