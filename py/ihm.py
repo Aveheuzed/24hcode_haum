@@ -284,10 +284,10 @@ class App:
         self.ScaleSteering.set(steering * 180 / self.STEER_MAX)
 
     def steerRight(self):
-        self.steer = min(self.STEER_MAX, self.steer + 3276.8)
+        self.steer = int(min(self.STEER_MAX, self.steer + 3276.8))
 
     def steerLeft(self):
-        self.steer = max(self.STEER_MIN, self.steer - 3276.8)
+        self.steer = int(max(self.STEER_MIN, self.steer - 3276.8))
 
     ##################################################
     ##################################################
@@ -506,6 +506,7 @@ class App:
 
         for e in tab:
             if e[0] == self.selectedCar.get():
+                print("click " + str(e[1]))
                 self.ip = e[1]
                 self.udp = create_udp_conn(e[1])
                 self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
@@ -631,8 +632,11 @@ class App:
         t1=Thread(target=self.upadteUI)
         t1.start()
 
-tabName = []
-tab = []
+tabName = ["simu","car"]
+tab = [("simu", "192.168.24.123"), ("car", "192.168.24.222")]
+#tabName = []
+#tab = []
+
 class MyListener(ServiceListener):
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
@@ -643,16 +647,21 @@ class MyListener(ServiceListener):
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         info = zc.get_service_info(type_, name)
+        print("name: " + name.split('.')[0])
+        print("ip: "  + ".".join(str(val) for val in [info.addresses[0][i] for i in range(0, len(info.addresses[0]))]))
         tabName.append(name.split('.')[0])
         tab.append((name.split('.')[0], ".".join(str(val) for val in [info.addresses[0][i] for i in range(0, len(info.addresses[0]))])))
 
 if __name__ == "__main__":
 
-    zeroconf = Zeroconf()
-    listener = MyListener()
-    browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
+    #zeroconf = Zeroconf()
+    #listener = MyListener()
+    #browser = ServiceBrowser(zeroconf, "_carnode._udp.local.", listener)
+    
     print("getting cars list...")
-    time.sleep(10)
+    #time.sleep(10)
+    while(len(tab) == 0 ):
+        time.sleep(10)
     print(tab)
 
 
