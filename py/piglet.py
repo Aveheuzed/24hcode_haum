@@ -59,6 +59,9 @@ class Piglet(pyglet.window.Window):
         self.LabelHeadlight = createLabel("Headlight: ", 10, 160)
         self.LabelStatusHeadlight = createLabel("40000", 100, 160)
 
+        self.LabelWarn = createLabel("Warn: ", 150, 160)
+        self.LabelStatusWarn = createLabel("False", 200, 160)
+        
         # get a list of all low-level input devices:
         devices = pyglet.input.get_devices()
 
@@ -103,9 +106,14 @@ class Piglet(pyglet.window.Window):
     def updateHeadlightUI(self, headlight):
         self.LabelStatusHeadlight.text = str(headlight)
 
+    def updateWarnUI(self, warn):
+        self.LabelStatusWarn.text = str(warn)
+
     def on_button_press(self, controller, button_name):     
         if button_name == 'a':
             self.controller.startEngine()
+        elif button_name == 'b':
+            self.controller.toggleWarn()
         elif button_name == 'leftstick':
             self.controller.boostMode(True)
         elif button_name == 'leftshoulder':
@@ -122,20 +130,6 @@ class Piglet(pyglet.window.Window):
             self.controller.throttle = -int((self.controller.THROTTLE_MAX / 2 ) * round(value,2))
         elif axis == 'rx':
             self.controller.steer = int((self.controller.STEER_MAX / 2 - 1) * round(value,2))
-        #else:
-            #self.controller.steer = 0
-        
-        #if axis == 'z' and value == -1:
-        #    self.controller.throttle = 0
-        #elif axis == 'z' and value >= 0:
-        #    self.controller.throttle = -int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
-        #elif axis == 'rz' and value == -1:
-        #    self.controller.throttle = 0
-        #elif axis == 'rz' and value >= 0:
-        #    print('go')
-        #    self.controller.throttle = int((self.controller.THROTTLE_MAX / 3 ) * abs(value))
-        #elif axis not in ('x', 'z', 'rz', )  :
-        #    self.controller.throttle = 0
 
 
     def on_draw(self):
@@ -149,6 +143,7 @@ class Piglet(pyglet.window.Window):
             self.updateIrvaluUI(status.ir)
             self.updateBoostUI(self.controller.boost)
             self.updateHeadlightUI(status.headlights)
+            self.updateWarnUI(self.controller.warnMode)
 
         self.clear()
         self.LabelEngine.draw()
@@ -163,43 +158,28 @@ class Piglet(pyglet.window.Window):
         self.LabelStatusIrvalue.draw()
         self.LabelHeadlight.draw()
         self.LabelStatusHeadlight.draw()
+        self.LabelWarn.draw()
+        self.LabelStatusWarn.draw()
         self.LabelRssi.draw()
         self.LabelStatusRssi.draw()
 
     
     def on_key_press(self, symbol, modifiers):
-        if symbol == key.Z:
-            self.controller.ZisPressed = True
-        elif symbol == key.S:
-            self.controller.SisPressed = True
-        elif symbol == key.Q:
-            self.controller.QisPressed = True
-        elif symbol == key.D:
-            self.controller.DisPressed = True
-        elif symbol == key.T:
+        if symbol == key.T:
             self.controller.startEngine()
         elif symbol == key.Y:
             self.controller.stopEngine()
-    
-    def on_key_release(self, symbol, modifiers):
-        if symbol == key.Z:
-            self.controller.ZisPressed = False
-        elif symbol == key.S:
-            self.controller.SisPressed = False
-        elif symbol == key.Q:
-            self.controller.QisPressed = False
-        elif symbol == key.D:
-            self.controller.DisPressed = False
 
 class Controller:
     def __init__(self) -> None:
         #100
-        self.ip = "192.168.24.100"
+        self.ip = "192.168.24.123"
         self.udp = create_udp_conn(self.ip)
         #self.tcp = create_tcp_conn(self.udp, b"\x00"*6)
         self.carControl = CarControl(self.udp, None, 2, b"\x00"*6)
         self.setRearColor(0,255,0)
 
+        self.warnMode = False
         self.boost = False
         self.throttle = 0
         self.steer = 0
@@ -220,6 +200,22 @@ class Controller:
         self.STEER_MIN = -32768
 
         self.threadCommand()
+        self.threagWarn()
+
+    def toggleWarn(self):
+        self.warnMode = not self.warnMode
+
+    def threagWarn(self):
+        t1=Thread(target=self.updateWarn)
+        t1.start()
+
+    def updateWarn(self):
+        while True:
+            if self.warnMode:
+                self.carControl.set_headlights(0)
+                time.sleep(1)
+                self.carControl.set_headlights(60000)
+
 
     def threadCommand(self):
         t1=Thread(target=self.updateValues)
@@ -228,26 +224,11 @@ class Controller:
     def updateValues(self):
         while(True):
 
-            #if(self.ZisPressed and not self.SisPressed):
-            #    self.throttleIncrease()
-            #elif(not self.ZisPressed and self.SisPressed):
-            #    self.throttleDecrease()
-            #elif(not self.ZisPressed and not self.SisPressed):
-                #self.throttle = 0
-            
-            #if(self.QisPressed and not self.DisPressed):
-                #self.steerLeft()
-            #    self.steer = -16384
-            #elif(not self.QisPressed and self.DisPressed):
-                #self.steerRight()
-            #    self.steer = 16384
-            #elif(not self.QisPressed and not self.DisPressed):
-                #self.steer = 0
 
             ## Retrieve new values
             if(self.ip != None):
                 if(self.engine):
-                    #print("throttle: ", self.throttle, " steer: ", self.steer, " divider: ", str(self.throttleDiviser))
+
                     calVal = self.throttle
                     if self.boost:
                         calVal = 16000
