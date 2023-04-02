@@ -6,7 +6,8 @@ from threading import *
 from mdns import dnsquery
 from car import create_udp_conn, create_tcp_conn, CarControl, fetch_status
 
-IP = "192.168.24.12"
+UI=False
+IP = "192.168.24.123"
 tabName = ["simu","car"]
 tab = [("simu", "192.168.24.123"), ("car", "192.168.24.123")]
 
@@ -59,8 +60,8 @@ class Piglet(pyglet.window.Window):
         self.LabelHeadlight = createLabel("Headlight: ", 10, 160)
         self.LabelStatusHeadlight = createLabel("40000", 100, 160)
 
-        self.LabelWarn = createLabel("Warn: ", 150, 160)
-        self.LabelStatusWarn = createLabel("False", 200, 160)
+        self.LabelWarn = createLabel("Warn: ", 210, 160)
+        self.LabelStatusWarn = createLabel("False", 260, 160)
         
         # get a list of all low-level input devices:
         devices = pyglet.input.get_devices()
@@ -84,15 +85,46 @@ class Piglet(pyglet.window.Window):
             print('Joystick Ok')
 
 
+    def computeSteerDisplay(self, val):
+        if val == 0:
+            return '■■■■■■■■■■□■■■■■■■■■■'
+        if val < 0:
+            return '■' * ( 10 - int((abs(val) + 1 ) * 10 / self.controller.STEER_MAX)) + '□' * int((abs(val) + 1 ) * 10 / self.controller.STEER_MAX) + '□■■■■■■■■■■'
+        else:
+            return '■■■■■■■■■■□' + '□' * int((abs(val) + 1 ) * 10 / self.controller.STEER_MAX) + '■' * ( 10 - int((abs(val) + 1 ) * 10 / self.controller.STEER_MAX))
+
+    def computeThrottleDisplay(self, val):
+        if val == 0:
+            return '■■■■■■■■■■□■■■■■■■■■■'
+        if val < 0:
+            return '■' * ( 10 - int((abs(val)) * 10 / self.controller.THROTTLE_MAX)) + '□' * int((abs(val)) * 10 / self.controller.THROTTLE_MAX) + '□■■■■■■■■■■'
+        else:
+            return '■■■■■■■■■■□' + '□' * int((abs(val)) * 10 / self.controller.THROTTLE_MAX) + '■' * ( 10 - int((abs(val)) * 10 / self.controller.THROTTLE_MAX))
+
+    def computeHeadlightDisplay(self, val):
+        if val == 0:
+            return '□■■■■■■■■■'
+        if val > 0:
+            return '□' * int((abs(val)) * 10 / self.controller.LIGHT_MAX) + '■' * ( 10 - int((abs(val)) * 10 / self.controller.LIGHT_MAX))
 
     def updateSteerUI(self, steer):
-        self.LabelStatusSteer.text = str(int(steer))
+        if UI:
+            self.LabelStatusSteer.text = self.computeSteerDisplay(steer)
+        else:
+            self.LabelStatusSteer.text = str(int(steer))
+
 
     def updateThrottleUI(self, throttle):
-        self.LabelStatusThrottle.text = str(int(throttle))
+        if UI:
+            self.LabelStatusThrottle.text = self.computeThrottleDisplay(throttle)
+        else:
+            self.LabelStatusThrottle.text = str(int(throttle))
 
     def updateEngineUI(self, engine):
-        self.LabelStatusEngine.text = str(int(engine))
+        if engine == 1:
+            self.LabelStatusEngine.text = "Started"
+        else:
+            self.LabelStatusEngine.text = "Off"
 
     def updateBoostUI(self, boost):
         self.LabelStatusBoost.text = str(boost)
@@ -104,7 +136,10 @@ class Piglet(pyglet.window.Window):
         self.LabelStatusIrvalue.text = chr(irValue)
     
     def updateHeadlightUI(self, headlight):
-        self.LabelStatusHeadlight.text = str(headlight)
+        if UI:
+            self.LabelStatusHeadlight.text = self.computeHeadlightDisplay(headlight)
+        else:
+            self.LabelStatusHeadlight.text = str(headlight)
 
     def updateWarnUI(self, warn):
         self.LabelStatusWarn.text = str(warn)
@@ -306,6 +341,6 @@ def friendlyFunction():
                     carControl.engine_off()
 
 if __name__ == "__main__":
-    friendlyThread()
+    #friendlyThread()
     Piglet(Controller())
     pyglet.app.run()
